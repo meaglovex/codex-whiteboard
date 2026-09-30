@@ -3,7 +3,8 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { atomicWrite, createBoard, listBoards, getBoard, saveBoard, changeBoard, getPreferences, setPreferences, exportBoard, dataRoot } from './store.mjs';
+import { atomicWrite, createBoard, listBoards, getBoard, saveBoard, changeBoard, getPreferences, setPreferences, exportBoard, dataRoot, getActiveSession, beginSession, activateBoard } from './store.mjs';
+import { syncConversation } from '../shared/sync.mjs';
 import { brainstorm } from './model.mjs';
 import { parseBoard, cardSchema } from './schema.mjs';
 
@@ -24,7 +25,7 @@ export async function startHttp(port=5210){
     if(req.headers.origin&&!['http://'+expected,`http://localhost:${port}`,'http://127.0.0.1:5199'].includes(req.headers.origin)){json(res,403,{error:'拒绝跨站访问'});return;}
     if(req.headers['sec-fetch-site']==='cross-site'){json(res,403,{error:'拒绝跨站访问'});return;}
     try{
-      if(url.pathname==='/api/health'){json(res,200,{name:'product-whiteboard',version:'0.1.1',busyBoards:[...busy]});return;}
+      if(url.pathname==='/api/health'){json(res,200,{name:'product-whiteboard',version:'0.1.2',busyBoards:[...busy]});return;}
       if(!url.pathname.startsWith('/api/')){
         if(req.method!=='GET'||url.pathname!=='/'){json(res,404,{error:'页面不存在'});return;}
         res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Set-Cookie':`whiteboard_session=${token}; HttpOnly; SameSite=Strict; Path=/`,'Content-Security-Policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'"});res.end(await fs.readFile(path.join(packageRoot,'ui/index.html')));return;
@@ -32,17 +33,20 @@ export async function startHttp(port=5210){
       const auth=req.headers.authorization===`Bearer ${token}`||req.headers.cookie?.split(';').some(c=>c.trim()===`whiteboard_session=${token}`);
       if(!auth){json(res,401,{error:'请从本机白板页面重新打开'});return;}
       if(['POST','PUT','PATCH'].includes(req.method)&&!req.headers['content-type']?.startsWith('application/json')){json(res,415,{error:'请求需要 JSON 内容'});return;}
+      if(url.pathname==='/api/session'&&req.method==='GET'){json(res,200,await getActiveSession());return;}
+      if(url.pathname==='/api/session/begin'&&req.method==='POST'){json(res,200,await beginSession(await body(req)));return;}
       if(url.pathname==='/api/boards'&&req.method==='GET'){json(res,200,await listBoards());return;}
       if(url.pathname==='/api/boards'&&req.method==='POST'){const input=await body(req);json(res,201,await createBoard(input.board?parseBoard(input.board):{...blank(input.title||'新的产品',input.goal||''),inspirations:input.inspirations||[]}));return;}
       if(url.pathname==='/api/preferences'){
         if(req.method==='GET')json(res,200,await getPreferences());else if(req.method==='PUT')json(res,200,await setPreferences(await body(req)));else json(res,405,{error:'不支持的操作'});return;
       }
-      const match=/^\/api\/boards\/([a-zA-Z0-9-]+)(?:\/(chat|apply|export))?$/.exec(url.pathname);
+      const match=/^\/api\/boards\/([a-zA-Z0-9-]+)(?:\/(chat|apply|export|sync))?$/.exec(url.pathname);
       if(!match){json(res,404,{error:'接口不存在'});return;}
       const [,id,action]=match;
       if(!action&&req.method==='GET'){json(res,200,{...await getBoard(id),busy:busy.has(id)});return;}
       if(!action&&req.method==='PUT'){const input=await body(req);json(res,200,await saveBoard(id,input.base,input.board,input.revision));return;}
       if(action==='export'&&req.method==='POST'){json(res,200,await exportBoard(id));return;}
+      if(action==='sync'&&req.method==='POST'){const input=await body(req);const state=await changeBoard(id,b=>syncConversation(b,input));await activateBoard(id);json(res,200,state);return;}
       if(action==='apply'&&req.method==='POST'){
         const {operations}=await body(req);if(!Array.isArray(operations)||operations.length>100)throw new Error('无效的变更操作');
         const state=await changeBoard(id,b=>{
@@ -53,7 +57,7 @@ export async function startHttp(port=5210){
             else if(op.action==='message'){if(!['ai','user'].includes(op.role)||typeof op.text!=='string')throw new Error('无效的讨论');b.messages.push({id:randomUUID(),role:op.role,text:op.text,createdAt:new Date().toISOString()});}
             else throw new Error('未知变更操作');
           }return b;
-        });json(res,200,state);return;
+        });await activateBoard(id);json(res,200,state);return;
       }
       if(action==='chat'&&req.method==='POST'){
         if(busy.has(id)){json(res,409,{error:'这一轮还在讨论，请稍候'});return;}
@@ -68,7 +72,7 @@ export async function startHttp(port=5210){
     }catch(e){json(res,e.status||400,{error:e.name==='ZodError'?'白板数据格式不完整，请检查内容':e.message||'操作失败'});}
   });
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
-  await atomicWrite(path.join(dataRoot,'runtime.json'),{port,pid:process.pid,token,version:'0.1.1'});
+  await atomicWrite(path.join(dataRoot,'runtime.json'),{port,pid:process.pid,token,version:'0.1.2'});
   return server;
 }
 if(process.argv.includes('--serve')){

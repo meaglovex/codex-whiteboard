@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { parseBoard, preferencesSchema } from './schema.mjs';
 import { mergeBoard } from '../shared/merge.mjs';
 import { toMarkdown } from '../shared/export.mjs';
@@ -23,3 +24,21 @@ export async function saveBoard(id,base,local,revision){return changeBoard(id,(r
 export async function getPreferences(){return preferencesSchema.parse(await read(path.join(dataRoot,'preferences.json'),{}));}
 export async function setPreferences(values){const current=await getPreferences();const result=preferencesSchema.parse({...current,...values});await atomicWrite(path.join(dataRoot,'preferences.json'),result);return result;}
 export async function exportBoard(id){const {board}=await getBoard(id);const dir=path.join(dataRoot,'exports',`${id}-${Date.now()}`);const json=path.join(dir,'whiteboard.json'),markdown=path.join(dir,'development-context.md');await atomicWrite(json,board);await atomicWrite(markdown,toMarkdown(board));return {json,markdown};}
+
+export async function getActiveSession(){return read(path.join(dataRoot,'active.json'),{boardId:null,generation:0});}
+async function activate(boardId){const state=await getBoard(boardId);const previous=await getActiveSession();const next={boardId,revision:state.revision,generation:previous.generation+1,updatedAt:new Date().toISOString()};await atomicWrite(path.join(dataRoot,'active.json'),next);return next;}
+export const activateBoard=boardId=>serial(()=>activate(boardId));
+export async function beginSession({productKey,title,goal='',conversationId,scope='local',boardId}){
+  if(typeof productKey!=='string'||!productKey.trim()||productKey.length>200)throw new Error('需要明确的产品标识');
+  if(typeof title!=='string'||!title.trim()||title.length>100)throw new Error('需要产品标题');
+  if(typeof scope!=='string'||scope.length>2000||conversationId!==undefined&&(typeof conversationId!=='string'||conversationId.length>200))throw new Error('无效的对话范围');
+  const key=createHash('sha256').update(JSON.stringify([conversationId||scope,productKey.trim()])).digest('hex');
+  return serial(async()=>{
+    const file=path.join(dataRoot,'sessions',key+'.json');const binding=await read(file,{});
+    let state,created=false;
+    if(boardId||binding.boardId)state=await getBoard(boardId||binding.boardId);
+    else {const board=parseBoard({version:1,id:randomUUID(),title:title.trim(),goal,inspirations:[],nodes:[],edges:[],messages:[]});state={board,revision:1,updatedAt:new Date().toISOString()};await atomicWrite(files(board.id),state);created=true;}
+    await atomicWrite(file,{boardId:state.board.id});await activate(state.board.id);
+    return {...state,created,sessionKey:key};
+  });
+}

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dataRoot } from './store.mjs';
 const port=Number(process.env.WHITEBOARD_PORT||5210);
 export async function ensureRuntime(){
-  async function ready(){try{const r=await fetch(`http://127.0.0.1:${port}/api/health`,{signal:AbortSignal.timeout(1200)});const x=await r.json();if(x.name==='product-whiteboard'&&x.version==='0.1.1'){const state=JSON.parse(await fs.readFile(path.join(dataRoot,'runtime.json'),'utf8'));if(state.port===port)return state;}}catch{}return null;}
+  async function ready(){try{const r=await fetch(`http://127.0.0.1:${port}/api/health`,{signal:AbortSignal.timeout(1200)});const x=await r.json();if(x.name==='product-whiteboard'&&x.version==='0.1.2'){const state=JSON.parse(await fs.readFile(path.join(dataRoot,'runtime.json'),'utf8'));if(state.port===port)return state;}}catch{}return null;}
   let state=await ready();if(state)return state;
   const child=spawn(process.execPath,[path.join(path.dirname(fileURLToPath(import.meta.url)),'app.mjs'),'--serve'],{detached:true,stdio:'ignore',env:process.env});child.unref();
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,100));state=await ready();if(state)return state;}

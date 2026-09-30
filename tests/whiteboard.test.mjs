@@ -62,3 +62,38 @@ test('same-field conflict leaves disk unchanged',async()=>{const original=(await
 test('invalid images, dangling edges and traversal ids fail safely',async()=>{const original=(await api('/api/boards/example')).value;for(const mutate of [b=>{b.nodes[1].data.image='https://example.com/tracker.png';},b=>{b.edges[0].target='missing';},b=>{b.id='../escape';},b=>{b.messages[0].suggestions=[{...b.nodes[1].data,image:'https://example.com/tracker.png'}];},b=>{b.edges.push({...b.edges[0]});}]){const bad=structuredClone(original.board);mutate(bad);const r=await api('/api/boards/example','PUT',{base:original.board,board:bad,revision:original.revision});assert.equal(r.status,400);}assert.equal((await api('/api/boards/example')).value.revision,original.revision);});
 test('three-way merge preserves edits made while a save was in flight',()=>{const base={nodes:[{id:'a',data:{title:'A'},position:{x:0,y:0}}],messages:[]};const sent=structuredClone(base);sent.nodes[0].position.x=10;const latest=structuredClone(sent);latest.nodes[0].position.x=20;const response=structuredClone(sent);response.messages.push({id:'m',text:'新讨论'});const result=mergeBoard(sent,latest,response);assert.equal(result.nodes[0].position.x,20);assert.equal(result.messages[0].text,'新讨论');});
 test('developer export retains prototype behavior, relationships and unadopted details',()=>{const c={kind:'prototype',title:'申请复核',body:'验证退款',pinned:false,prototype:{screenTitle:'复核',actionLabel:'提交',placeholder:'拒绝原因',successText:'申请已保存'},details:[{id:'d',title:'失败恢复',body:'保留输入',children:[{id:'c',title:'重复提交',body:'幂等检查'}]}]};const result=toMarkdown({title:'退款',goal:'减少误操作',inspirations:[],nodes:[{id:'a',data:c},{id:'b',data:{...c,title:'到账'}}],edges:[{source:'a',target:'b'}],messages:[{role:'ai',text:'候选讨论',suggestions:[{...c,title:'未采纳的备选'}]}]});assert.match(result,/完成反馈：申请已保存/);assert.match(result,/申请复核 → 到账/);assert.match(result,/未采纳的备选/);assert.match(result,/重复提交：幂等检查/);});
+
+test('natural-intent begin is idempotent per conversation and switches the active page',async()=>{
+  const begin=arguments_=>client.callTool({name:'whiteboard_begin',arguments:arguments_});
+  const input={productKey:'photo-journal',title:'旅途相册',goal:'把旅行照片与当天感受结合',conversationId:'test-conversation-a'};
+  const first=await begin(input),retry=await begin(input);
+  assert.equal(first.isError,undefined);assert.equal(first.structuredContent.created,true);
+  assert.equal(retry.structuredContent.created,false);assert.equal(retry.structuredContent.board.id,first.structuredContent.board.id);
+  const other=await begin({...input,productKey:'reading-journal',title:'阅读日记'});
+  assert.notEqual(other.structuredContent.board.id,first.structuredContent.board.id);
+  const anotherConversation=await begin({...input,conversationId:'test-conversation-b'});
+  assert.notEqual(anotherConversation.structuredContent.board.id,first.structuredContent.board.id);
+  const active=(await api('/api/session')).value;assert.equal(active.boardId,anotherConversation.structuredContent.board.id);
+  const ui=await client.callTool({name:'whiteboard_ui_request',arguments:{route:'/api/session'}});
+  assert.equal(ui.structuredContent.data.boardId,active.boardId);
+  assert.equal((await api('/api/session/begin','POST',{...input,productKey:''})).status,400);
+});
+test('discussion sync revises the same card, keeps deep arguments and deduplicates retries',async()=>{
+  const started=await client.callTool({name:'whiteboard_begin',arguments:{productKey:'auto-sync',title:'讨论驱动',conversationId:'sync-test'}});
+  const boardId=started.structuredContent.board.id;
+  const sync=patch=>client.callTool({name:'whiteboard_sync',arguments:{boardId,...patch}});
+  const original={cards:[{id:'core_idea',card:{kind:'idea',title:'自动整理',body:'先讨论假设',pinned:false,details:[{id:'reason',title:'为什么',body:'减少分类负担',children:[{id:'exception',title:'整理失败',body:'保留原文',children:[{id:'retry',title:'恢复操作',body:'再次整理仍可撤销'}]}]}]}},{id:'flow',card:{kind:'flow',title:'主流程',body:'',pinned:false,steps:[{title:'说出想法',sub:'当前聊天'},{title:'讨论',sub:'质疑和举例'},{title:'自动更新',sub:'同一页'}],details:[]}}],links:[{source:'core_idea',target:'flow'}],messages:[{id:'round_1',role:'user',text:'先验证是否真的需要自动整理'}]};
+  assert.equal((await sync(original)).isError,undefined);assert.equal((await sync(original)).isError,undefined);
+  const generation=(await api('/api/session')).value.generation;
+  assert.equal((await sync({cards:[{id:'core_idea',card:{title:'先收下，再整理',body:'用户确认先快速捕捉',pinned:true,details:[{id:'reason',title:'为什么',body:'用户反驳了强制分类'}]}}],messages:[{id:'round-2',role:'ai',text:'撤回强制分类，保留快速捕捉'}]})).isError,undefined);
+  const state=(await api(`/api/boards/${boardId}`)).value;
+  assert.equal(state.board.nodes.length,2);assert.equal(state.board.messages.length,2);assert.equal(state.board.edges.length,1);
+  const core=state.board.nodes[0].data;assert.equal(core.pinned,true);assert.equal(core.title,'先收下，再整理');
+  assert.equal(core.details[0].children[0].children[0].body,'再次整理仍可撤销');
+  assert.ok((await api('/api/session')).value.generation>generation);
+  assert.equal((await api('/api/session')).value.revision,state.revision);
+  const bad=await sync({links:[{source:'core_idea',target:'absent'}]});assert.equal(bad.isError,true);
+  assert.equal((await api(`/api/boards/${boardId}`)).value.revision,state.revision);
+  const files=(await client.callTool({name:'whiteboard_export',arguments:{boardId}})).structuredContent;
+  assert.match(await fs.readFile(files.markdown,'utf8'),/再次整理仍可撤销/);
+});

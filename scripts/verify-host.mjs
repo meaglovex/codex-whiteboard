@@ -8,12 +8,13 @@ const rl=readline.createInterface({input:proc.stdout});
 rl.on('line',line=>{let msg;try{msg=JSON.parse(line);}catch{return;}if(msg.id!==undefined&&pending.has(msg.id)){const cb=pending.get(msg.id);pending.delete(msg.id);msg.error?cb.reject(new Error(msg.error.message)):cb.resolve(msg.result);}else if(msg.id!==undefined&&msg.method)send({id:msg.id,error:{code:-32601,message:'No approval actions in read-only integration probe'}});});
 function call(method,params){const id=serial++;return new Promise((resolve,reject)=>{const timeout=setTimeout(()=>{pending.delete(id);reject(new Error('Host integration timeout: '+method));},35000);pending.set(id,{resolve:x=>{clearTimeout(timeout);resolve(x);},reject:e=>{clearTimeout(timeout);reject(e);}});send({id,method,params});});}
 try{
-  await call('initialize',{clientInfo:{name:'product_whiteboard_acceptance',version:'0.1.1'},capabilities:{experimentalApi:true}});send({method:'initialized',params:{}});
+  await call('initialize',{clientInfo:{name:'product_whiteboard_acceptance',version:'0.1.2'},capabilities:{experimentalApi:true}});send({method:'initialized',params:{}});
   const start=await call('thread/start',{cwd:process.cwd(),ephemeral:true,approvalPolicy:'never',sandbox:'read-only',baseInstructions:'Read-only plugin loading probe. No model turn will be started.'});
   let target;
   for(let i=0;i<30;i++){const state=await call('mcpServerStatus/list',{limit:200,detail:'toolsAndAuthOnly'});target=state.data?.find(x=>x.name?.includes('whiteboard'));if(target&&Object.keys(target.tools||{}).length)break;await new Promise(r=>setTimeout(r,500));}
   if(!target)throw new Error('Installed whiteboard MCP server was not discovered by Codex');
   const entry=Object.values(target.tools||{}).find(tool=>tool.name==='whiteboard_open');
+  for(const name of ['whiteboard_begin','whiteboard_sync'])assert.ok(Object.values(target.tools||{}).some(tool=>tool.name===name),'Codex did not load '+name);
   assert.equal(entry?.title,'产品白板','Codex did not load the panel title');
   assert.ok(entry?._meta?.ui?.resourceUri?.startsWith('ui://'),'Codex did not load the UI resource');
   assert.ok(entry?._meta?.['openai/ui']?.entrypoints?.some(x=>x.type==='thread'),'Codex did not load the thread menu entrypoint');

@@ -5,11 +5,13 @@ export async function thirdPartyNotices(root){
   const sections=[];
   for(const [location,meta]of Object.entries(lock.packages||{})){
     if(!location||meta.dev||meta.link)continue;
-    const dir=path.join(root,location),pkg=JSON.parse(await fs.readFile(path.join(dir,'package.json'),'utf8'));
+    const dir=path.join(root,location);let pkg;
+    try{pkg=JSON.parse(await fs.readFile(path.join(dir,'package.json'),'utf8'));}catch(e){if(meta.optional&&e.code==='ENOENT')continue;throw e;}
     const names=(await fs.readdir(dir)).filter(n=>/^licen[cs]e(?:[._-]|$)/i.test(n));
     const licenses=[];
     for(const name of names){if((await fs.stat(path.join(dir,name))).isFile())licenses.push(await fs.readFile(path.join(dir,name),'utf8'));}
     sections.push(`${pkg.name} ${pkg.version}\nLicense: ${pkg.license||meta.license||'See package repository'}\n${licenses.join('\n')||'No standalone license file in the installed package.'}`);
   }
-  return 'Third-party software notices for Product Whiteboard 0.1.0\n\n'+sections.join('\n\n--------------------\n\n')+'\n';
+  const {version}=JSON.parse(await fs.readFile(path.join(root,'package.json'),'utf8'));
+  return `Third-party software notices for Product Whiteboard ${version}\n\n`+sections.join('\n\n--------------------\n\n')+'\n';
 }

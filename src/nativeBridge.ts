@@ -2,7 +2,7 @@ import { App } from '@modelcontextprotocol/ext-apps';
 
 declare global { interface Window { __PRODUCT_WHITEBOARD_MCP__?: boolean } }
 export const inNativePanel = window.__PRODUCT_WHITEBOARD_MCP__ === true;
-const app = inNativePanel ? new App({ name: '产品白板', version: '0.1.1' }, {}, { autoResize: false }) : undefined;
+const app = inNativePanel ? new App({ name: '产品白板', version: '0.1.2' }, {}, { autoResize: false }) : undefined;
 let boardId: string | undefined;
 let finishInitial: (() => void) | undefined;
 const initial = new Promise<void>(resolve => { finishInitial = resolve; });
