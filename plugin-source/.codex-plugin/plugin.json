@@ -1,6 +1,6 @@
 {
   "name": "product-whiteboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "面向产品开发前的多媒体共识白板，保留双向讨论与多层开发依据。",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

@@ -23,6 +23,31 @@ before(async()=>{
 });
 after(async()=>{await client?.close();proc?.kill('SIGTERM');await new Promise(r=>setTimeout(r,150));await fs.rm(dir,{recursive:true,force:true});});
 test('MCP handshake exposes product tools and opens the actual service',async()=>{const list=await client.listTools();assert.ok(list.tools.some(t=>t.name==='whiteboard_image'));const result=await client.callTool({name:'whiteboard_open',arguments:{boardId:'example'}});assert.equal(result.isError,undefined);assert.match(result.structuredContent.url,/5319/);});
+test('native menu entry points at a self-contained MCP App resource',async()=>{
+  const {tools}=await client.listTools();const open=tools.find(t=>t.name==='whiteboard_open');
+  assert.equal(open.title,'产品白板');assert.deepEqual(open._meta['openai/ui'].entrypoints,[{type:'thread'}]);
+  const uri=open._meta.ui.resourceUri;assert.match(uri,/^ui:\/\//);
+  const {resources}=await client.listResources();assert.ok(resources.some(r=>r.uri===uri));
+  const {contents}=await client.readResource({uri});const resource=contents[0];
+  assert.equal(resource.mimeType,'text/html;profile=mcp-app');
+  assert.match(resource.text,/window\.__PRODUCT_WHITEBOARD_MCP__=true/);
+  assert.match(resource.text,/whiteboard_ui_request/);
+  assert.deepEqual(resource._meta.ui.csp.connectDomains,[]);
+  assert.ok(resource.text.length>100000);assert.doesNotMatch(resource.text,/Bearer [a-f0-9]{64}/);
+  assert.deepEqual(tools.find(t=>t.name==='whiteboard_ui_request')._meta.ui.visibility,['app']);
+});
+test('native UI bridge saves real data and rejects unrelated endpoints',async()=>{
+  const invoke=arguments_=>client.callTool({name:'whiteboard_ui_request',arguments:arguments_});
+  const created=await invoke({route:'/api/boards',method:'POST',value:{title:'面板桥接验证',goal:'验证真实保存'}});
+  assert.equal(created.isError,undefined);const id=created.structuredContent.data.board.id;
+  const state=(await invoke({route:`/api/boards/${id}`,method:'GET'})).structuredContent.data;
+  const changed=structuredClone(state.board);changed.goal='通过 MCP 面板保存的目标';
+  const saved=await invoke({route:`/api/boards/${id}`,method:'PUT',value:{base:state.board,board:changed,revision:state.revision}});
+  assert.equal(saved.isError,undefined);
+  assert.equal(JSON.parse(await fs.readFile(path.join(dir,'boards',id+'.json'),'utf8')).board.goal,changed.goal);
+  for(const route of ['/api/health','/api/boards/../preferences','https://example.com','/api/boards/example/apply'])assert.equal((await invoke({route,method:'GET'})).isError,true);
+  assert.equal((await invoke({route:'/api/boards',method:'GET',value:{}})).isError,true);
+});
 test('MCP image returns real media, not a placeholder',async()=>{const result=await client.callTool({name:'whiteboard_image',arguments:{boardId:'example',nodeId:'landscape'}});const image=result.content.find(x=>x.type==='image');assert.equal(image.mimeType,'image/jpeg');assert.ok(Buffer.from(image.data,'base64').length>10000);});
 test('cross-site requests and DNS rebinding are rejected',async()=>{assert.equal((await api('/api/boards','GET',undefined,{Origin:'https://example.com'})).status,403);assert.equal((await api('/api/boards','GET',undefined,{'Sec-Fetch-Site':'cross-site'})).status,403);const status=await new Promise((resolve,reject)=>{const req=http.get({hostname:'127.0.0.1',port,path:'/api/boards',headers:{Host:'evil.example'}},res=>{res.resume();resolve(res.statusCode);});req.on('error',reject);});assert.equal(status,403);});
 test('unauthenticated mutations cannot create a board',async()=>{const r=await fetch(`http://127.0.0.1:${port}/api/boards`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'unauthorized'})});assert.equal(r.status,401);});

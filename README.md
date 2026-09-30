@@ -4,7 +4,9 @@
 
 ## 本机试用
 
-0.1.0 已在本机 Codex 安装并启用。打开 [产品白板](http://127.0.0.1:5210/?board=example)，点击顶部项目名 → **新的产品**，填写目标与想融合的体验。窄屏从“更多操作 → 新的产品”进入。
+0.1.1 已在本机 Codex 安装并启用，补齐了原生面板声明。入口位置为聊天右侧 **新标签页 → 更多工具… → 产品白板**。新启动的 Codex 服务已读到入口；运行中的桌面菜单实显仍待用户确认。若旧聊天保留了工具缓存，先在新聊天查看。
+
+打开面板后，点击顶部项目名 → **新的产品**，填写目标与想融合的体验。窄屏从“更多操作 → 新的产品”进入。也可直接打开 [本机网页](http://127.0.0.1:5210/?board=example)；两种界面使用相同数据。
 
 在 Codex 新聊天中输入“用产品白板，和我讨论一个产品想法”，可调用已安装的 Skill 与 MCP 工具。工具会按需启动本机服务，并返回白板地址。旧聊天可能需要新聊天才能加载新增插件。
 
@@ -39,7 +41,11 @@ npm test
 npm run verify:host
 ```
 
-`install:local` 构建前端、打包 MCP 与 Skill、注册本机市场、安装插件并核对安装文件；只在确认进程属于本插件且讨论已结束时刷新服务。不会设置开机启动或发布到外网。
+`install:local` 构建前端、打包 MCP 与 Skill、注册本机市场、安装插件并核对安装文件；只在确认进程属于本插件且讨论已结束时刷新服务，包括本插件已安装的上一版本。不会设置开机启动或发布到外网。
+
+面板通过 MCP Apps 桥接调用本插件的数据接口，无需嵌入本机网页或向界面传递私有令牌。`whiteboard_open` 声明 `ui://` 资源及 thread 入口；`whiteboard_ui_request` 仅供面板使用，限定本插件的白板、讨论、偏好和导出接口。声明依据 [OpenAI 面板入口文档](https://developers.openai.com/plugins/build/extensions)。
+
+`node scripts/preview-mcp-panel.mjs` 启动人工验收宿主，使用真实 MCP 工具和独立 `.test-data/native-panel/` 数据。5321 是验收界面，5322 是测试服务；它不代表 Codex 桌面菜单已通过验收。
 
 构建包位于 `release/product-whiteboard/`，本机市场清单位于 `.agents/plugins/marketplace.json`。打包格式依据 [OpenAI 插件文档](https://developers.openai.com/plugins/build/plugins)，使用受支持的 `.codex-plugin/plugin.json`、Skill 与 stdio MCP。公开市场提交留待试用后处理。
 

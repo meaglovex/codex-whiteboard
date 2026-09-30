@@ -17,4 +17,4 @@ for(const [entry,out] of [['http','app'],['mcp','mcp']])await build({entryPoints
 const seed=await build({stdin:{contents:"export { freshBoard } from './src/model.ts';",resolveDir:root},write:false,bundle:true,platform:'node',format:'esm',loader:{'.jpg':'text'}});
 const {freshBoard}=await import(`data:text/javascript;base64,${Buffer.from(seed.outputFiles[0].text).toString('base64')}`);
 await fs.writeFile(path.join(release,'example.json'),JSON.stringify(freshBoard(),null,2));
-console.log('Plugin 0.1.0 packaged at release/product-whiteboard');
+console.log('Plugin 0.1.1 packaged at release/product-whiteboard');

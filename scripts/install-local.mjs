@@ -15,6 +15,7 @@ if((await health())?.busyBoards?.length)throw new Error('白板正在讨论，�
 execFileSync(process.platform==='win32'?'npm.cmd':'npm',['run','build:plugin'],{cwd:root,stdio:'inherit'});
 const cli=args=>JSON.parse(execFileSync(codex,[...args,'--json'],{cwd:root,encoding:'utf8'}));
 cli(['plugin','marketplace','add',root]);
+const previousVersion=cli(['plugin','list','--marketplace','product-whiteboard-local']).installed?.find(x=>x.pluginId==='product-whiteboard@product-whiteboard-local')?.version;
 const receipt=cli(['plugin','add','product-whiteboard@product-whiteboard-local']);
 const installed=receipt.installedPath;
 if(!installed)throw new Error('Codex 未返回安装目录。');
@@ -27,11 +28,12 @@ if(current?.name==='product-whiteboard'){
   if(current.busyBoards?.length)throw new Error('讨论正在进行，更新已安装，请讨论结束后重新运行以刷新服务。');
   const runtime=JSON.parse(await fs.readFile(path.join(data,'runtime.json'),'utf8'));
   const command=execFileSync('ps',['-p',String(runtime.pid),'-o','command='],{encoding:'utf8'}).trim();
-  if(!command.includes(path.join(installed,'server/app.mjs')+' --serve'))throw new Error('现有服务进程无法确认归属；已保留它，请手动检查。');
+  const versions=[receipt.version,previousVersion].filter(v=>typeof v==='string'&&/^\d+\.\d+\.\d+$/.test(v));
+  if(!versions.some(v=>command.includes(path.join(path.dirname(installed),v,'server/app.mjs')+' --serve')))throw new Error('现有服务进程无法确认归属；已保留它，请手动检查。');
   process.kill(runtime.pid,'SIGTERM');
   for(let i=0;i<60;i++){if(!await health())break;await new Promise(r=>setTimeout(r,100));}
 }
-const client=new Client({name:'product-whiteboard-local-installer',version:'0.1.0'});
+const client=new Client({name:'product-whiteboard-local-installer',version:'0.1.1'});
 try{
   await client.connect(new StdioClientTransport({command:process.execPath,args:['./server/mcp.mjs'],cwd:installed}));
   const opened=await client.callTool({name:'whiteboard_open',arguments:{boardId:'example'}});
