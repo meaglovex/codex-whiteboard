@@ -1,0 +1,18 @@
+{
+  "name": "product-whiteboard",
+  "version": "0.1.0",
+  "description": "面向产品开发前的多媒体共识白板，保留双向讨论与多层开发依据。",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "产品白板",
+    "shortDescription": "把想法摊开，再一起定下来。",
+    "longDescription": "本机白板，支持多媒体节点、流程、交互原型、深层细节、Codex 讨论、偏好与开发上下文导出。",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": ["打开产品白板，和我一起讨论一个新的产品想法。"],
+    "brandColor": "#79866d",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg"
+  }
+}

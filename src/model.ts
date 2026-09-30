@@ -11,12 +11,15 @@ export type Card = {
   body: string;
   pinned: boolean;
   image?: string;
+  proposalId?: string;
   steps?: { title: string; sub: string }[];
+  prototype?: {screenTitle:string;actionLabel:string;placeholder:string;successText:string};
   details: Detail[];
 };
 export type BoardNode = Node<Card, 'boardCard'>;
-export type Message = { id: string; role: 'ai' | 'user'; text: string };
-export type BoardState = { version: 1; nodes: BoardNode[]; edges: Edge[]; messages: Message[] };
+export type Message = { id: string; role: 'ai' | 'user'; text: string; suggestions?:Card[] };
+export type BoardState = { version: 1; id:string;title:string;goal:string;inspirations:string[];example?:boolean;nodes: BoardNode[]; edges: Edge[]; messages: Message[] };
+export type Preferences = {language:string;stack:string;design:string;habits:string;source:string};
 export function assetImage(value?: string): string | undefined {
   return value === 'asset:forest' ? forest : value === 'asset:art' ? art : value === 'asset:journal' ? journal : value;
 }
@@ -76,9 +79,9 @@ export const initialMessages: Message[] = [
 ];
 
 export function freshBoard(): BoardState {
-  return { version: 1, nodes: structuredClone(initialNodes), edges: structuredClone(initialEdges), messages: structuredClone(initialMessages) };
+  return { version: 1, id:'example',title:'慢一点 · 日常记录',goal:'帮助用户轻松留下日常片刻，再按时间回看自己的故事。',inspirations:['相册的回看感','备忘录的快速记录'],example:true,nodes: structuredClone(initialNodes), edges: structuredClone(initialEdges), messages: structuredClone(initialMessages) };
 }
 
 export function portableBoard(state: BoardState): BoardState {
-  return { ...state, nodes: state.nodes.map(node => ({ ...node, selected: false, dragging: false })) };
+  return { ...state, nodes: state.nodes.map(node => ({ id:node.id,type:'boardCard',dragHandle:'.drag-handle',position:node.position,data:node.data })),edges:state.edges.map(edge=>({id:edge.id,source:edge.source,target:edge.target,sourceHandle:edge.sourceHandle,targetHandle:edge.targetHandle,type:'default'})) };
 }
