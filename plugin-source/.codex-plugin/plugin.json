@@ -1,6 +1,6 @@
 {
   "name": "product-whiteboard",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "识别新产品意图自动建板，随 Codex 对话更新核心想法与多层开发依据。",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

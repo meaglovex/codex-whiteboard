@@ -27,7 +27,7 @@ function call(method,params){const id=serial++;return new Promise((resolve,rejec
 async function turn(threadId,text){const start=events.length;const {turn}=await call('turn/start',{threadId,input:[{type:'text',text}]});const deadline=Date.now()+360000;while(!completed.has(turn.id)){if(Date.now()>deadline)throw new Error('Model turn timed out');await new Promise(r=>setTimeout(r,500));}const result=completed.get(turn.id);if(result.status!=='completed')throw new Error('Model turn failed: '+JSON.stringify(result.error));return events.slice(start).filter(e=>e.turnId===turn.id).map(e=>e.item);}
 async function boards(){const dir=path.join(data,'boards');return Promise.all((await fs.readdir(dir)).filter(n=>n.endsWith('.json')).map(async n=>JSON.parse(await fs.readFile(path.join(dir,n),'utf8'))));}
 try{
- await call('initialize',{clientInfo:{name:'whiteboard_implicit_acceptance',version:'0.2.2'},capabilities:{experimentalApi:true}});send({method:'initialized',params:{}});
+ await call('initialize',{clientInfo:{name:'whiteboard_implicit_acceptance',version:'0.2.3'},capabilities:{experimentalApi:true}});send({method:'initialized',params:{}});
  const start=await call('thread/start',{cwd,ephemeral:true,approvalPolicy:'never',sandbox:'read-only'});const threadId=start.thread.id;
  let target;for(let i=0;i<30;i++){const state=await call('mcpServerStatus/list',{limit:200,detail:'toolsAndAuthOnly'});target=state.data?.find(x=>x.name?.includes('whiteboard'));if(target&&Object.values(target.tools||{}).some(t=>t.name==='whiteboard_begin'))break;await new Promise(r=>setTimeout(r,500));}
  assert.ok(target,'Installed MCP was not discovered');
@@ -47,7 +47,7 @@ try{
  const negative=await turn(other.thread.id,'已有项目的保存按钮点击没反应，代码我稍后提供。现在只分析可能原因，不要写文件。');
  assert.ok(!negative.some(x=>x.type==='mcpToolCall'&&x.tool==='whiteboard_begin'),'Existing project repair incorrectly created a product board');
  assert.equal((await boards()).filter(x=>!x.board.example).length,1);
- const receipt={version:'0.2.2',naturalIntent:true,rebuttalSync:true,ordinaryRepairNoCreation:true,boardId,firstRevision,secondRevision:revised[0].revision,cardCount:revised[0].board.nodes.length,firstTools:first.filter(x=>x.type==='mcpToolCall').map(x=>x.tool),secondTools:second.filter(x=>x.type==='mcpToolCall').map(x=>x.tool),data};
+ const receipt={version:'0.2.3',naturalIntent:true,rebuttalSync:true,ordinaryRepairNoCreation:true,boardId,firstRevision,secondRevision:revised[0].revision,cardCount:revised[0].board.nodes.length,firstTools:first.filter(x=>x.type==='mcpToolCall').map(x=>x.tool),secondTools:second.filter(x=>x.type==='mcpToolCall').map(x=>x.tool),data};
  await fs.writeFile(path.join(data,'acceptance.json'),JSON.stringify({receipt,events},null,2),{mode:0o600});console.log(JSON.stringify(receipt,null,2));
 }finally{
  proc.kill('SIGTERM');rl.close();
