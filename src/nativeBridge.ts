@@ -1,12 +1,14 @@
 import { App } from '@modelcontextprotocol/ext-apps';
+import { setHostTheme } from './theme';
 
 declare global { interface Window { __PRODUCT_WHITEBOARD_MCP__?: boolean } }
 export const inNativePanel = window.__PRODUCT_WHITEBOARD_MCP__ === true;
-const app = inNativePanel ? new App({ name: '产品白板', version: '0.2.1' }, {}, { autoResize: false }) : undefined;
+const app = inNativePanel ? new App({ name: '产品白板', version: '0.2.2' }, {}, { autoResize: false }) : undefined;
 let boardId: string | undefined;
 let finishInitial: (() => void) | undefined;
 const initial = new Promise<void>(resolve => { finishInitial = resolve; });
 if (app) {
+  app.onhostcontextchanged = context => { if (context.theme) setHostTheme(context.theme); };
   app.ontoolinput = ({ arguments: input }) => {
     if (typeof input?.boardId === 'string') boardId = input.boardId;
   };
@@ -17,7 +19,7 @@ if (app) {
   };
 }
 const connection = app?.connect(undefined, { timeout: 15000 });
-void connection?.catch(() => {});
+void connection?.then(() => setHostTheme(app?.getHostContext()?.theme)).catch(() => {});
 
 export async function initialBoardId() {
   if (!app) {

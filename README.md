@@ -1,4 +1,4 @@
-# 产品白板 0.2.1
+# 产品白板 0.2.2
 
 Codex 对话驱动的产品开发前白板。用户说出新产品想法，Codex 自动建一页、边讨论边更新；白板只呈现核心想法、流程、视觉参考和关键交互，下层保留争论、分支与开发依据。
 
@@ -41,7 +41,7 @@ npm run verify:host
 
 `install:local` 构建前端、打包 MCP 与 Skill、注册本机市场、安装插件并核对文件，只在确认旧进程属于本插件且讨论已结束时刷新服务。不设置开机启动，不发布外网，不修改其他插件。
 
-前端沿用 React、TypeScript、Vite、React Flow 与官方 shadcn/ui Base Nova 交互组件。0.2.0 使用探案证据墙外观：真实生成的软木与纸张材质、图钉、状态印章和红线关系。布局只影响展示，不改写保存的节点、原文、依据和关系；没有真实关系时不会补装饰线。窄屏采用可滚动的单列纸张。MCP Apps 面板通过宿主转发限定的插件接口，没有私有令牌或外部脚本。`whiteboard_open` 声明菜单入口，`whiteboard_begin` 带相同面板资源；插件格式依据 [OpenAI 文档](https://developers.openai.com/plugins/build/plugins)。
+前端沿用 React、TypeScript、Vite、React Flow 与官方 shadcn/ui Base Nova 交互组件。0.2.2 保留探案证据墙的错位纸张、图钉、状态印章和真实关系线，材质改为冷灰卡纸、细毡板与金属边框。网页随系统深浅色模式即时切换；原生 MCP 面板优先采用宿主提供的主题，计划、依据、菜单和原型共同切换。布局只影响展示，不改写保存的节点、原文、依据和关系；没有真实关系时不会补装饰线。窄屏采用可滚动的单列纸张。MCP Apps 面板通过宿主转发限定的插件接口，没有私有令牌或外部脚本。`whiteboard_open` 声明菜单入口，`whiteboard_begin` 带相同面板资源；插件格式依据 [OpenAI 文档](https://developers.openai.com/plugins/build/plugins)。
 
 `node scripts/preview-mcp-panel.mjs` 启动真实 MCP Apps 人工验收宿主：5321 为界面，5322 为服务，独立 `.test-data/native-viewer/` 数据；它不代表 Codex 桌面菜单实显已通过。`node scripts/verify-implicit.mjs` 使用真实 Codex 模型在隔离目录验证自然语言触发、反驳后的增量更新和普通修复不触发，会消耗模型额度，不纳入默认单元测试。
 
@@ -55,8 +55,10 @@ codex plugin remove product-whiteboard@product-whiteboard-local
 
 ## 验收记录
 
+0.2.2（2026-10-04）：保留证据墙风格，仅升级冷色材质与深浅色适配。25 项测试通过；系统媒体偏好和真实 MCP Apps 宿主主题变化均经实测，详情见 [材质设计与核对](design/dark-evidence-concept.md)。
+
 0.2.1（2026-10-04）：22 项测试通过，Codex 宿主加载到计划同步工具。内置浏览器验证了计划空状态、同步后自动显示、Markdown 阅读、保存文件回读、白板隔离和 390 px 窄屏阅读；当前「内网通」仍未生成计划，升级没有改写其原数据。
 
 [0.2.0 探案证据墙验收](design/V0.2.0-ACCEPTANCE.md)记录当前界面、安装和行为检查；[0.1.2 对话驱动验收](design/V0.1.2-ACCEPTANCE.md)保留先前的自然语言触发记录。
 
-0.2.1 的本机健康检查用 `appVersion` 标识产品版本；`version: 0.1.2` 保留为兼容旧聊天的运行时协议版本。
+0.2.2 的本机健康检查用 `appVersion` 标识产品版本；`version: 0.1.2` 保留为兼容旧聊天的运行时协议版本。

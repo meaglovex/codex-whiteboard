@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { request, ensureRuntime } from './runtime.mjs';
 import { panelUri, panelResource, panelRequest } from './panel.mjs';
 import { cardSchema } from './schema.mjs';
-const server=new McpServer({name:'product-whiteboard',version:'0.2.1'});
+const server=new McpServer({name:'product-whiteboard',version:'0.2.2'});
 server.registerResource('product-whiteboard-panel',panelUri,{mimeType:'text/html;profile=mcp-app'},panelResource);
 server.registerTool('whiteboard_ui_request',{
   title:'白板面板数据操作',description:'仅供产品白板面板读取和保存本插件数据。',
