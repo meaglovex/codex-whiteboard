@@ -3,6 +3,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dataRoot } from './store.mjs';
+// Keep the runtime wire version stable so already-open v0.1.2 MCP sessions remain compatible.
 const port=Number(process.env.WHITEBOARD_PORT||5210);
 export async function ensureRuntime(){
   async function ready(){try{const r=await fetch(`http://127.0.0.1:${port}/api/health`,{signal:AbortSignal.timeout(1200)});const x=await r.json();if(x.name==='product-whiteboard'&&x.version==='0.1.2'){const state=JSON.parse(await fs.readFile(path.join(dataRoot,'runtime.json'),'utf8'));if(state.port===port)return state;}}catch{}return null;}

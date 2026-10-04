@@ -1,6 +1,6 @@
 {
   "name": "product-whiteboard",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "识别新产品意图自动建板，随 Codex 对话更新核心想法与多层开发依据。",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
@@ -11,7 +11,7 @@
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
     "defaultPrompt": ["打开产品白板，和我一起讨论一个新的产品想法。"],
-    "brandColor": "#79866d",
+    "brandColor": "#9e3531",
     "composerIcon": "./assets/icon.svg",
     "logo": "./assets/icon.svg"
   }

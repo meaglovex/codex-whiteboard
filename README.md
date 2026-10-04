@@ -1,4 +1,4 @@
-# 产品白板 0.1.2
+# 产品白板 0.2.0
 
 Codex 对话驱动的产品开发前白板。用户说出新产品想法，Codex 自动建一页、边讨论边更新；白板只呈现核心想法、流程、视觉参考和关键交互，下层保留争论、分支与开发依据。
 
@@ -39,7 +39,7 @@ npm run verify:host
 
 `install:local` 构建前端、打包 MCP 与 Skill、注册本机市场、安装插件并核对文件，只在确认旧进程属于本插件且讨论已结束时刷新服务。不设置开机启动，不发布外网，不修改其他插件。
 
-前端沿用 React、TypeScript、Vite 和 React Flow，官方 shadcn/ui Base Nova 组件与主题。MCP Apps 面板通过宿主转发限定的插件接口，没有私有令牌或外部脚本。`whiteboard_open` 声明菜单入口，`whiteboard_begin` 带相同面板资源；插件格式依据 [OpenAI 文档](https://developers.openai.com/plugins/build/plugins)。
+前端沿用 React、TypeScript、Vite、React Flow 与官方 shadcn/ui Base Nova 交互组件。0.2.0 使用探案证据墙外观：真实生成的软木与纸张材质、图钉、状态印章和红线关系。布局只影响展示，不改写保存的节点、原文、依据和关系；没有真实关系时不会补装饰线。窄屏采用可滚动的单列纸张。MCP Apps 面板通过宿主转发限定的插件接口，没有私有令牌或外部脚本。`whiteboard_open` 声明菜单入口，`whiteboard_begin` 带相同面板资源；插件格式依据 [OpenAI 文档](https://developers.openai.com/plugins/build/plugins)。
 
 `node scripts/preview-mcp-panel.mjs` 启动真实 MCP Apps 人工验收宿主：5321 为界面，5322 为服务，独立 `.test-data/native-viewer/` 数据；它不代表 Codex 桌面菜单实显已通过。`node scripts/verify-implicit.mjs` 使用真实 Codex 模型在隔离目录验证自然语言触发、反驳后的增量更新和普通修复不触发，会消耗模型额度，不纳入默认单元测试。
 
@@ -53,4 +53,6 @@ codex plugin remove product-whiteboard@product-whiteboard-local
 
 ## 验收记录
 
-[0.1.2 对话驱动验收](design/V0.1.2-ACCEPTANCE.md)记录当前结果。
+[0.2.0 探案证据墙验收](design/V0.2.0-ACCEPTANCE.md)记录当前界面、安装和行为检查；[0.1.2 对话驱动验收](design/V0.1.2-ACCEPTANCE.md)保留先前的自然语言触发记录。
+
+0.2.0 的本机健康检查用 `appVersion` 标识产品版本；`version: 0.1.2` 保留为兼容旧聊天的运行时协议版本。

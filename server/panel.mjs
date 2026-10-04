@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { request } from './runtime.mjs';
 
-export const panelUri = 'ui://product-whiteboard/board-v0.1.2.html';
+export const panelUri = 'ui://product-whiteboard/board-v0.2.0.html';
 export async function panelResource() {
   const html = await fs.readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), '../ui/index.html'), 'utf8');
   return { contents: [{
