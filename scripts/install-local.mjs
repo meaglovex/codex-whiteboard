@@ -19,7 +19,7 @@ const previousVersion=cli(['plugin','list','--marketplace','product-whiteboard-l
 const receipt=cli(['plugin','add','product-whiteboard@product-whiteboard-local']);
 const installed=receipt.installedPath;
 if(!installed)throw new Error('Codex 未返回安装目录。');
-for(const file of ['ui/index.html','server/app.mjs','server/mcp.mjs','.codex-plugin/plugin.json','.mcp.json','skills/product-whiteboard/SKILL.md','skills/product-whiteboard/agents/openai.yaml','README.md','PRIVACY.md','THIRD_PARTY_NOTICES.txt']){
+for(const file of ['ui/index.html','server/app.mjs','server/mcp.mjs','.codex-plugin/plugin.json','.mcp.json','skills/product-whiteboard/SKILL.md','skills/product-whiteboard/references/development-progress.md','skills/product-whiteboard/agents/openai.yaml','README.md','PRIVACY.md','THIRD_PARTY_NOTICES.txt']){
   const hash=async p=>createHash('sha256').update(await fs.readFile(p)).digest('hex');
   if(await hash(path.join(installed,file))!==await hash(path.join(root,'release/product-whiteboard',file)))throw new Error('已安装文件与构建不一致：'+file);
 }
@@ -33,7 +33,7 @@ if(current?.name==='product-whiteboard'){
   process.kill(runtime.pid,'SIGTERM');
   for(let i=0;i<60;i++){if(!await health())break;await new Promise(r=>setTimeout(r,100));}
 }
-const client=new Client({name:'product-whiteboard-local-installer',version:'0.2.3'});
+const client=new Client({name:'product-whiteboard-local-installer',version:'0.3.0'});
 try{
   await client.connect(new StdioClientTransport({command:process.execPath,args:['./server/mcp.mjs'],cwd:installed}));
   const opened=await client.callTool({name:'whiteboard_open',arguments:{boardId:'example'}});

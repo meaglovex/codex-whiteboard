@@ -1,4 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
+import type { ProjectProgress } from './progressModel';
 import forest from './assets/forest.jpg';
 import art from './assets/art.jpg';
 import journal from './assets/journal.jpg';
@@ -19,7 +20,7 @@ export type Card = {
 export type BoardNode = Node<Card, 'boardCard'>;
 export type Message = { id: string; role: 'ai' | 'user'; text: string; suggestions?:Card[] };
 export type BoardPlan = { title: string; markdown: string; updatedAt: string; sourcePath?: string };
-export type BoardState = { version: 1; id:string;title:string;goal:string;inspirations:string[];example?:boolean;nodes: BoardNode[]; edges: Edge[]; messages: Message[]; plan?: BoardPlan };
+export type BoardState = { version: 1; id:string;title:string;goal:string;inspirations:string[];example?:boolean;nodes: BoardNode[]; edges: Edge[]; messages: Message[]; plan?: BoardPlan; phase?: 'discovery' | 'development'; projectPath?: string; progress?: ProjectProgress };
 export type Preferences = {language:string;stack:string;design:string;habits:string;source:string};
 export function assetImage(value?: string): string | undefined {
   return value === 'asset:forest' ? forest : value === 'asset:art' ? art : value === 'asset:journal' ? journal : value;

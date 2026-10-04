@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { parseBoard, preferencesSchema, planInputSchema } from './schema.mjs';
 import { mergeBoard } from '../shared/merge.mjs';
 import { toMarkdown } from '../shared/export.mjs';
+import { applyProgress } from './progress.mjs';
 export { toMarkdown } from '../shared/export.mjs';
 
 export const dataRoot=process.env.WHITEBOARD_DATA_DIR || path.join(os.homedir(), process.platform==='darwin'?'Library/Application Support/Product Whiteboard':'.local/share/product-whiteboard');
@@ -16,9 +17,9 @@ const files=id=>path.join(dataRoot,'boards',`${safeId(id)}.json`);
 let queue=Promise.resolve();
 export const serial=fn=>{const result=queue.then(fn);queue=result.catch(()=>{});return result;};
 export async function getBoard(id){const v=await read(files(id));if(!v){const e=new Error('白板不存在');e.status=404;throw e;}return v;}
-export async function listBoards(){await fs.mkdir(path.join(dataRoot,'boards'),{recursive:true,mode:0o700});const names=await fs.readdir(path.join(dataRoot,'boards'));const boards=await Promise.all(names.filter(n=>n.endsWith('.json')).map(async n=>{const x=await read(path.join(dataRoot,'boards',n));return {id:x.board.id,title:x.board.title,goal:x.board.goal,example:x.board.example,revision:x.revision,updatedAt:x.updatedAt};}));return boards.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));}
+export async function listBoards(){await fs.mkdir(path.join(dataRoot,'boards'),{recursive:true,mode:0o700});const names=await fs.readdir(path.join(dataRoot,'boards'));const boards=await Promise.all(names.filter(n=>n.endsWith('.json')).map(async n=>{const x=await read(path.join(dataRoot,'boards',n));return {id:x.board.id,title:x.board.title,goal:x.board.goal,example:x.board.example,phase:x.board.phase,projectPath:x.board.projectPath,progressUpdatedAt:x.board.progress?.updatedAt,revision:x.revision,updatedAt:x.updatedAt};}));return boards.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));}
 export async function createBoard(board){return serial(async()=>{board=parseBoard(board);if(await read(files(board.id)))throw new Error('白板已存在');const state={board,revision:1,updatedAt:new Date().toISOString()};await atomicWrite(files(board.id),state);return state;});}
-export async function changeBoard(id,fn){return serial(async()=>{const current=await getBoard(id);const board=parseBoard(await fn(structuredClone(current.board),current));if(board.id!==id)throw new Error('不能修改白板 ID');await atomicWrite(path.join(dataRoot,'history',id,`${current.revision}.json`),current);const state={board,revision:current.revision+1,updatedAt:new Date().toISOString()};await atomicWrite(files(id),state);const h=path.join(dataRoot,'history',id);const names=(await fs.readdir(h)).filter(n=>n.endsWith('.json')).sort((a,b)=>Number(a.slice(0,-5))-Number(b.slice(0,-5)));for(const n of names.slice(0,-20))await fs.unlink(path.join(h,n));return state;});}
+export async function changeBoard(id,fn){return serial(async()=>{const current=await getBoard(id);const proposed=await fn(structuredClone(current.board),current);if(proposed===null)return current;const board=parseBoard(proposed);if(board.id!==id)throw new Error('不能修改白板 ID');await atomicWrite(path.join(dataRoot,'history',id,`${current.revision}.json`),current);const state={board,revision:current.revision+1,updatedAt:new Date().toISOString()};await atomicWrite(files(id),state);const h=path.join(dataRoot,'history',id);const names=(await fs.readdir(h)).filter(n=>n.endsWith('.json')).sort((a,b)=>Number(a.slice(0,-5))-Number(b.slice(0,-5)));for(const n of names.slice(0,-20))await fs.unlink(path.join(h,n));return state;});}
 
 export async function saveBoard(id,base,local,revision){return changeBoard(id,(remote,current)=>{base=parseBoard(base);local=parseBoard(local);if(base.id!==id||local.id!==id)throw new Error('白板 ID 不一致');return current.revision===revision?local:mergeBoard(base,local,remote);});}
 export async function getPreferences(){return preferencesSchema.parse(await read(path.join(dataRoot,'preferences.json'),{}));}
@@ -35,6 +36,13 @@ export async function savePlan(id,input){
   });
   await activateBoard(id);
   return {boardId:id,revision:state.revision,planPath,updatedAt:plan.updatedAt};
+}
+
+export async function saveProgress(id,input){
+  let unchanged=false;
+  const state=await changeBoard(id,board=>{const next=applyProgress(board,input);unchanged=next===null;return next;});
+  if(!unchanged)await activateBoard(id);
+  return {boardId:id,revision:state.revision,phase:state.board.phase,updatedAt:state.board.progress.updatedAt,unchanged};
 }
 
 export async function getActiveSession(){return read(path.join(dataRoot,'active.json'),{boardId:null,generation:0});}

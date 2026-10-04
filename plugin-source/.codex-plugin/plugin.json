@@ -1,16 +1,21 @@
 {
   "name": "product-whiteboard",
-  "version": "0.2.3",
-  "description": "识别新产品意图自动建板，随 Codex 对话更新核心想法与多层开发依据。",
+  "version": "0.3.0",
+  "description": "构思时整理核心想法与多层依据，开发时按真实任务、验收和阻塞更新项目进度。",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "产品白板",
-    "shortDescription": "把想法摊开，再一起定下来。",
-    "longDescription": "在 Codex 聊天中讨论新产品时自动建板与持续更新，呈现核心想法、流程、视觉参考和关键交互，保留多层开发依据。",
+    "shortDescription": "从产品构思到开发进度。",
+    "longDescription": "在 Codex 中讨论产品时自动建板；开发时切换为可读的阶段路线图，按真实里程碑、任务和验收依据持续更新，随时回看产品构思。",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"],
-    "defaultPrompt": ["打开产品白板，和我一起讨论一个新的产品想法。"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "打开产品白板，和我一起讨论一个新的产品想法。"
+    ],
     "brandColor": "#9e3531",
     "composerIcon": "./assets/icon.svg",
     "logo": "./assets/icon.svg"

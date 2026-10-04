@@ -10,7 +10,7 @@ const root=path.resolve('release/product-whiteboard'),data=path.resolve(process.
 await fs.mkdir(data,{recursive:true,mode:0o700});
 const env={...process.env,WHITEBOARD_DATA_DIR:data,WHITEBOARD_PORT:'5322'};
 const service=spawn(process.execPath,[path.join(root,'server/app.mjs'),'--serve'],{env,stdio:'ignore'});
-const client=new Client({name:'whiteboard-panel-acceptance',version:'0.2.3'});
+const client=new Client({name:'whiteboard-panel-acceptance',version:'0.3.0'});
 await client.connect(new StdioClientTransport({command:process.execPath,args:[path.join(root,'server/mcp.mjs')],env}));
 const {tools}=await client.listTools(),entry=tools.find(t=>t.name==='whiteboard_open');
 const output=await client.callTool({name:entry.name,arguments:{boardId:'example'}});
@@ -19,7 +19,7 @@ const bundle=await build({stdin:{contents:`
 import {AppBridge,PostMessageTransport} from '@modelcontextprotocol/ext-apps/app-bridge';
 const frame=document.querySelector('iframe');
 const boot=await(await fetch('/boot')).json();
-const bridge=new AppBridge(null,{name:'Native panel acceptance host',version:'0.2.3'},{serverTools:{},logging:{}},{hostContext:{theme:'dark'}});
+const bridge=new AppBridge(null,{name:'Native panel acceptance host',version:'0.3.0'},{serverTools:{},logging:{}},{hostContext:{theme:'dark'}});
 document.querySelector('#theme-light').addEventListener('click',()=>bridge.setHostContext({theme:'light'}));
 document.querySelector('#theme-dark').addEventListener('click',()=>bridge.setHostContext({theme:'dark'}));
 bridge.oncalltool=async params=>{const response=await fetch('/tool',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)});if(!response.ok)throw new Error('MCP forwarding failed');return response.json();};

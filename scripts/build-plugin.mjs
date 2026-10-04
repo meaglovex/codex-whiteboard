@@ -8,10 +8,10 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 execFileSync(process.platform==='win32'?'npm.cmd':'npm',['run','build'],{cwd:root,stdio:'inherit'});
 const release=path.join(root,'release/product-whiteboard');await fs.mkdir(path.join(release,'server'),{recursive:true});await fs.mkdir(path.join(release,'ui'),{recursive:true});
 await fs.cp(path.join(root,'plugin-source'),release,{recursive:true});
-for(const name of ['README.md','PRIVACY.md'])await fs.copyFile(path.join(root,name),path.join(release,name));
+for(const name of ['README.md','PRIVACY.md','plan.md'])await fs.copyFile(path.join(root,name),path.join(release,name));
 await fs.writeFile(path.join(release,'THIRD_PARTY_NOTICES.txt'),await thirdPartyNotices(root));
 await fs.mkdir(path.join(release,'design'),{recursive:true});
-for(const name of ['V0.1.2-ACCEPTANCE.md','v0.1.2-installed-conversation.png','v0.1.2-installed-narrow.png','V0.2.0-ACCEPTANCE.md','v0.2.0-installed.jpg','v0.2.0-narrow.jpg','dark-evidence-concept.md','dark-evidence-concept.png'])await fs.copyFile(path.join(root,'design',name),path.join(release,'design',name));
+for(const name of ['V0.1.2-ACCEPTANCE.md','v0.1.2-installed-conversation.png','v0.1.2-installed-narrow.png','V0.2.0-ACCEPTANCE.md','v0.2.0-installed.jpg','v0.2.0-narrow.jpg','dark-evidence-concept.md','dark-evidence-concept.png','development-map.md','development-map-concept.png','development-map-mobile.png','v0.3.0-installed.png','v0.3.0-narrow.png'])await fs.copyFile(path.join(root,'design',name),path.join(release,'design',name));
 await fs.copyFile(path.join(root,'dist/index.html'),path.join(release,'ui/index.html'));
 for(const name of ['forest','art','journal'])await fs.copyFile(path.join(root,`src/assets/${name}.jpg`),path.join(release,`assets/${name}.jpg`));
 const banner="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);";
@@ -19,4 +19,4 @@ for(const [entry,out] of [['http','app'],['mcp','mcp']])await build({entryPoints
 const seed=await build({stdin:{contents:"export { freshBoard } from './src/model.ts';",resolveDir:root},write:false,bundle:true,platform:'node',format:'esm',loader:{'.jpg':'text'}});
 const {freshBoard}=await import(`data:text/javascript;base64,${Buffer.from(seed.outputFiles[0].text).toString('base64')}`);
 await fs.writeFile(path.join(release,'example.json'),JSON.stringify(freshBoard(),null,2));
-console.log('Plugin 0.2.3 packaged at release/product-whiteboard');
+console.log('Plugin 0.3.0 packaged at release/product-whiteboard');

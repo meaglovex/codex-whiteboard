@@ -1,0 +1,91 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MarkerType, ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react';
+import { Crosshair, Map, Maximize, Minus, Plus } from 'lucide-react';
+import type { BoardState } from '../../model';
+import { inNativePanel } from '../../nativeBridge';
+import { currentMilestone, milestoneSummaries, progressGraph, statusLabels, taskCounts, type MilestoneNode } from '../../progressModel';
+import { Button } from '../ui/button';
+import { Progress } from '../ui/progress';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '../ui/empty';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../ui/sheet';
+import MilestoneCard, { MilestoneActions } from './MilestoneCard';
+import TaskInspector from './TaskInspector';
+import StatusBadge from './StatusBadge';
+import '../../project.css';
+
+const nodeTypes = { milestone: MilestoneCard };
+function readSelection(boardId: string) {
+  if (inNativePanel) return undefined;
+  const params = new URLSearchParams(location.search);
+  return params.get('board') === boardId ? params.get('milestone') || undefined : undefined;
+}
+function ProgressMap({ board, error }: { board: BoardState; error: string }) {
+  const progress = board.progress!;
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(() => readSelection(board.id));
+  const manualSelection = useRef(!!selectedId);
+  const [now, setNow] = useState(Date.now());
+  const [docked, setDocked] = useState(() => matchMedia('(min-width: 1440px)').matches);
+  const canvas = useRef<HTMLDivElement>(null);
+  const flow = useReactFlow<MilestoneNode>();
+  const compact = size.width > 0 && size.width < 760;
+  const items = useMemo(() => milestoneSummaries(progress), [progress]);
+  const current = currentMilestone(items);
+  const selected = items.find(item => item.milestone.id === selectedId) || current || items[0];
+  const graph = useMemo(() => progressGraph(items, compact, selected?.milestone.id), [items, compact, selected?.milestone.id]);
+  const counts = taskCounts(progress.tasks);
+  useEffect(() => {
+    if (!canvas.current) return;
+    const observer = new ResizeObserver(entries => { const { width, height } = entries[0].contentRect; setSize({ width, height }); });
+    observer.observe(canvas.current); return () => observer.disconnect();
+  }, []);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer); }, []);
+  useEffect(() => { const query = matchMedia('(min-width: 1440px)'); const update = () => setDocked(query.matches); query.addEventListener('change', update); return () => query.removeEventListener('change', update); }, []);
+  useEffect(() => { if (!manualSelection.current && current) setSelectedId(current.milestone.id); }, [current?.milestone.id]);
+  const focus = useCallback((id?: string) => {
+    const node = graph.nodes.find(entry => entry.id === id);
+    if (node) void flow.setCenter(node.position.x + (node.width || 300) / 2, node.position.y + (node.height || 244) / 2, { zoom: compact ? Math.min(1, (size.width - 30) / 330) : 1, duration: 220 });
+  }, [graph.nodes, compact, flow, size.width]);
+  const fit = useCallback(() => { void flow.fitView({ padding: .08, minZoom: .85, maxZoom: 1, duration: 220 }); }, [flow]);
+  useEffect(() => {
+    if (!size.width) return;
+    const timer = setTimeout(() => { if (compact || size.height < 580 || graph.nodes.length > 6) focus(selected?.milestone.id); else fit(); }, 100);
+    return () => clearTimeout(timer);
+  // Only geometry changes reposition the viewport. Live updates must not move a user's reading target.
+  }, [size.width, size.height, compact, graph.nodes.length]);
+  const select = (id: string) => {
+    manualSelection.current = true; setSelectedId(id); if (!docked) setInspectorOpen(true);
+    if (!inNativePanel) { const url = new URL(location.href); url.searchParams.set('milestone', id); url.searchParams.set('view', 'development'); history.replaceState(null, '', url); }
+  };
+  const ageMinutes = Math.max(0, Math.floor((now - Date.parse(progress.updatedAt)) / 60000));
+  const timestamp = new Date(progress.updatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return <section className="progress-workspace" aria-label="项目开发进度">
+    <header className="project-overview"><div className="project-heading"><h1>{board.title}<span>开发进度</span></h1><p aria-live="polite">{progress.summary}</p></div>
+      <div className="project-totals"><div><strong>{counts.done} / {counts.total}</strong><span>项已完成</span><Progress value={counts.ratio * 100} aria-label="按任务数量计算的完成度" /></div>
+        {!!counts.blocked && <p className="blocked-total">{counts.blocked}<span>项受阻</span></p>}
+        <p className="project-sync" data-stale={!!error || ageMinutes >= 15}>{error ? '同步中断，保留上次数据' : ageMinutes >= 15 ? `已 ${ageMinutes} 分钟未更新` : '最近同步'}<time dateTime={progress.updatedAt}>{timestamp}</time></p>
+      </div>
+    </header>
+    <div className="project-body">
+      <div className="project-map" ref={canvas}>
+        <MilestoneActions.Provider value={{ select }}>
+          <ReactFlow<MilestoneNode> nodes={graph.nodes} edges={graph.edges} nodeTypes={nodeTypes} fitView={!compact} fitViewOptions={{ padding: .08, minZoom: .85, maxZoom: 1 }}
+            onNodeClick={(event, node) => { if (!(event.target as HTMLElement).closest('button')) select(node.id); }}
+            nodesDraggable={false} nodesConnectable={false} nodesFocusable={false} edgesFocusable={false} elementsSelectable={false} deleteKeyCode={null} minZoom={.4} maxZoom={1.5}
+            zoomOnDoubleClick={false} panOnScroll={compact} zoomOnScroll={!compact} proOptions={{ hideAttribution: true }}
+            defaultEdgeOptions={{ type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--project-route-color)' } }} />
+        </MilestoneActions.Provider>
+        <div className="project-map-controls"><Button variant="outline" size="icon" aria-label="缩小进度图" onClick={() => void flow.zoomOut()}><Minus /></Button><Button variant="outline" size="icon" aria-label="放大进度图" onClick={() => void flow.zoomIn()}><Plus /></Button><Button variant="outline" size="sm" onClick={fit}><Maximize data-icon="inline-start" />适应视图</Button><Button variant="outline" size="icon" aria-label="定位当前阶段" onClick={() => { manualSelection.current = false; if (current) { setSelectedId(current.milestone.id); focus(current.milestone.id); } }}><Crosshair /></Button></div>
+        {compact && selected && <Button variant="secondary" className="mobile-stage-details" onClick={() => setInspectorOpen(true)}>查看任务 · {selected.milestone.title}</Button>}
+      </div>
+      {docked && selected && <div className="project-desktop-inspector"><TaskInspector key={selected.milestone.id} item={selected} progress={progress} /></div>}
+    </div>
+    <footer className="project-footer"><div className="project-legend">{(['done', 'in_progress', 'review', 'blocked', 'locked'] as const).map(status => <StatusBadge key={status} status={status} />)}</div><span>按任务验收记录更新</span></footer>
+    <Sheet open={!docked && inspectorOpen} onOpenChange={setInspectorOpen}><SheetContent className="project-detail-sheet"><SheetHeader><SheetTitle>阶段任务</SheetTitle><SheetDescription>{selected ? `${selected.milestone.title} · ${statusLabels[selected.status]}` : '查看任务与验收依据'}</SheetDescription></SheetHeader>{selected && <TaskInspector key={selected.milestone.id} item={selected} progress={progress} />}</SheetContent></Sheet>
+  </section>;
+}
+export default function ProgressBoard({ board, error }: { board: BoardState; error: string }) {
+  if (!board.progress?.milestones.length) return <div className="progress-workspace progress-empty"><Empty><EmptyHeader><EmptyMedia variant="icon"><Map /></EmptyMedia><EmptyTitle>{board.id === 'waiting' ? '正在读取开发进度…' : '开始开发后，在这里推进项目'}</EmptyTitle><EmptyDescription>Codex 会根据计划建立里程碑，随实际开发同步任务、验收结果和阻塞原因。</EmptyDescription></EmptyHeader></Empty></div>;
+  return <ReactFlowProvider><ProgressMap board={board} error={error} /></ReactFlowProvider>;
+}

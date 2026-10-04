@@ -158,3 +158,20 @@ test('concurrent plan saves keep the file copy equal to the latest board snapsho
   assert.equal(await fs.readFile(file,'utf8'),saved.board.plan.markdown);
   assert.equal(saved.revision,5);
 });
+
+test('development progress travels through MCP, persists, deduplicates retries and survives context export',async()=>{
+  const {board}=(await api('/api/boards','POST',{title:'进度持久化'})).value;
+  const args={boardId:board.id,eventId:'start-development',summary:'开始开发',projectPath:dir,milestones:[{id:'core',title:'功能实现'}],tasks:[{id:'task',milestoneId:'core',title:'核心任务',acceptance:'测试通过',status:'in_progress'}]};
+  const first=await client.callTool({name:'whiteboard_progress',arguments:args});assert.equal(first.isError,undefined);
+  const retry=await client.callTool({name:'whiteboard_progress',arguments:args});assert.equal(retry.structuredContent.revision,first.structuredContent.revision);assert.equal(retry.structuredContent.unchanged,true);
+  const state=(await client.callTool({name:'whiteboard_read',arguments:{boardId:board.id}})).structuredContent;
+  assert.equal(state.board.phase,'development');assert.equal(state.board.progress.events.length,1);
+  const list=(await api('/api/boards')).value.find(item=>item.id===board.id);assert.equal(list.projectPath,dir);assert.equal(list.phase,'development');
+  const native=await client.callTool({name:'whiteboard_ui_request',arguments:{route:`/api/boards/${board.id}`}});assert.equal(native.structuredContent.data.board.progress.tasks[0].status,'in_progress');
+  const bad=await client.callTool({name:'whiteboard_progress',arguments:{boardId:board.id,eventId:'fake',summary:'不能空口完成',tasks:[{id:'task',status:'done'}]}});assert.equal(bad.isError,true);
+  assert.equal((await api(`/api/boards/${board.id}`)).value.revision,state.revision);
+  const exported=await client.callTool({name:'whiteboard_export',arguments:{boardId:board.id}});const paths=exported.structuredContent;
+  assert.equal(JSON.parse(await fs.readFile(paths.json,'utf8')).progress.tasks[0].acceptance,'测试通过');
+  assert.match(await fs.readFile(paths.markdown,'utf8'),/开发进度/);
+  assert.match(await fs.readFile(paths.markdown,'utf8'),/核心任务/);
+});
