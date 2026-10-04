@@ -175,3 +175,66 @@ test('development progress travels through MCP, persists, deduplicates retries a
   assert.match(await fs.readFile(paths.markdown,'utf8'),/开发进度/);
   assert.match(await fs.readFile(paths.markdown,'utf8'),/核心任务/);
 });
+
+test('a malformed unauthenticated request target returns 400 without stopping the service',async()=>{
+  const status=await new Promise((resolve,reject)=>{
+    const req=http.get({hostname:'127.0.0.1',port,path:'http://[bad',headers:{Host:`127.0.0.1:${port}`}},res=>{res.resume();resolve(res.statusCode);});
+    req.on('error',reject);
+  });
+  assert.equal(status,400);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/api/health`)).status,200);
+});
+
+test('concurrent preference patches preserve each independent field',async()=>{
+  for(let i=0;i<6;i++){
+    await api('/api/preferences','PUT',{stack:'',design:''});
+    const saved=await Promise.all([api('/api/preferences','PUT',{stack:`TypeScript ${i}`}),api('/api/preferences','PUT',{design:`shadcn ${i}`})]);
+    assert.ok(saved.every(result=>result.status===200));
+    const preferences=(await api('/api/preferences')).value;
+    assert.equal(preferences.stack,`TypeScript ${i}`);assert.equal(preferences.design,`shadcn ${i}`);
+  }
+});
+
+test('PUT publishes its revision without changing the active project',async()=>{
+  const older=(await api('/api/boards','POST',{title:'历史项目'})).value;
+  const active=(await api('/api/session')).value;
+  const saved=await api(`/api/boards/${older.board.id}`,'PUT',{base:older.board,board:{...older.board,title:'保存后的历史项目'},revision:older.revision});
+  assert.equal(saved.status,200);
+  const published=(await api('/api/session')).value;
+  assert.equal(published.boardId,active.boardId);assert.ok(published.generation>active.generation);
+  const current=(await api(`/api/boards/${active.boardId}`)).value;
+  const changed=await api(`/api/boards/${active.boardId}`,'PUT',{base:current.board,board:{...current.board,goal:'已保存并通知页面'},revision:current.revision});
+  assert.equal((await api('/api/session')).value.revision,changed.value.revision);
+});
+
+test('session bootstrap gives a port-scoped cookie and rejects foreign origins',async()=>{
+  const response=await fetch(`http://127.0.0.1:${port}/api/session/bootstrap`);
+  assert.equal(response.status,200);assert.deepEqual(await response.json(),{ok:true});
+  const cookie=response.headers.get('set-cookie');
+  assert.ok(cookie.startsWith(`whiteboard_session_${port}=`));assert.ok(cookie.includes('HttpOnly'));assert.ok(cookie.includes('SameSite=Strict'));
+  const authenticated=await fetch(`http://127.0.0.1:${port}/api/boards`,{headers:{Cookie:cookie.split(';')[0]}});
+  assert.equal(authenticated.status,200);
+  const wrongPort=await fetch(`http://127.0.0.1:${port}/api/boards`,{headers:{Cookie:cookie.split(';')[0].replace(`_${port}=`,`_${port+1}=`)}});
+  assert.equal(wrongPort.status,401);
+  const denied=await fetch(`http://127.0.0.1:${port}/api/session/bootstrap`,{headers:{Origin:'https://example.com'}});
+  assert.equal(denied.status,403);assert.equal(denied.headers.get('set-cookie'),null);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/api/runtime/stop`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,401);
+});
+
+test('localized Markdown export preserves stable IDs, both dependency graphs, and original content',async()=>{
+  const created=(await api('/api/boards','POST',{title:'保留原文的项目'})).value;
+  const boardId=created.board.id;
+  const result=await client.callTool({name:'whiteboard_progress',arguments:{boardId,eventId:'export-dependencies',summary:'原始中文说明',milestones:[{id:'first',title:'第一阶段'},{id:'second',title:'第二阶段',dependsOn:['first']}],tasks:[{id:'task-a',milestoneId:'first',title:'任务甲',acceptance:'满足甲的条件'},{id:'task-b',milestoneId:'second',title:'任务乙',acceptance:'满足乙的条件',dependsOn:['task-a']}]}});
+  assert.equal(result.isError,undefined);
+  await client.callTool({name:'whiteboard_plan',arguments:{boardId,markdown:'# 原始计划\n\n正文不应被翻译。'}});
+  const exported=await client.callTool({name:'whiteboard_export',arguments:{boardId,locale:'en-GB'}});
+  assert.equal(exported.isError,undefined);
+  const markdown=await fs.readFile(exported.structuredContent.markdown,'utf8');
+  assert.match(markdown,/Milestone ID: second/);assert.match(markdown,/Task ID: task-b/);
+  assert.match(markdown,/Prerequisite milestones: 第一阶段 \(`first`\)/);
+  assert.match(markdown,/Prerequisite tasks: 任务甲 \(`task-a`\)/);
+  assert.match(markdown,/原始中文说明/);assert.match(markdown,/满足乙的条件/);
+  assert.equal(await fs.readFile(exported.structuredContent.plan,'utf8'),'# 原始计划\n\n正文不应被翻译。');
+  const json=JSON.parse(await fs.readFile(exported.structuredContent.json,'utf8'));
+  assert.deepEqual(json.progress.tasks[1].dependsOn,['task-a']);
+});

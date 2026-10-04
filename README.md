@@ -1,4 +1,4 @@
-# 产品白板 0.3.1
+# 产品白板 0.4.0
 
 Codex 对话驱动的产品与项目白板。构思阶段整理核心想法与多层依据；进入开发后，同一页切换为里程碑路线图，展示实际任务、验收依据和阻塞。原构思和计划随时可回看。
 
@@ -28,6 +28,12 @@ Skill 要求在任务开始、待验收、验证完成、受阻和本轮结束�
 
 工具按稳定 ID 增量更新。`eventId` 对相同参数的重试去重；同一 ID 的不同内容、循环依赖和缺失引用会被拒绝。`whiteboard_list` 返回 `projectPath` 供新聊天找回项目，`whiteboard_read` 返回完整状态，`whiteboard_export` 导出原构思、计划与开发进度。对应本机写入接口为 `POST /api/boards/:id/progress`，沿用现有会话鉴权；原生面板只读取进度，状态由 Codex 工具更新。输入字段和同步规则见源码中的 `plugin-source/skills/product-whiteboard/references/development-progress.md`，安装后位于 `skills/product-whiteboard/references/development-progress.md`。
 
+## 语言与字体
+
+界面支持简体中文、繁体中文和英语。原生面板优先采用宿主提供的语言；网页读取浏览器/系统语言优先列表，不支持的语言回退到英语。语言变化后，导航、状态、计划面板和时间显示同步更新。字体使用 `system-ui` 和操作系统字体回退链，不强制加载外部字体。
+
+项目名称、想法、任务、验收依据和计划正文保留原文。页面导出会按界面语言生成标题和状态，并保留里程碑、任务的稳定 ID 与依赖关系；MCP 的 `whiteboard_export` 可用 `locale` 指定导出语言。
+
 ## 数据与开发依据
 
 - 核心卡片使用稳定 ID，讨论修订更新原卡；多层依据按 ID 合并，保留未提及的子内容。
@@ -49,9 +55,13 @@ npm test
 npm run verify:host
 ```
 
-`install:local` 构建前端、打包 MCP 与 Skill、注册本机市场、安装插件并核对文件，只在确认旧进程属于本插件且讨论已结束时刷新服务。不设置开机启动，不发布外网，不修改其他插件。
+`install:local` 构建前端、打包 MCP 与 Skill、注册本机市场、安装插件并核对文件。新版 MCP 会检查后台版本和能力，在确认归属且没有进行中的讨论时安全升级，并等待旧进程完成保存后退出。旧版后台的进程识别支持 macOS/Linux；无法确认归属时保留进程并明确报错。不设置开机启动，不发布外网，不修改其他插件。
 
 前端沿用 React、TypeScript、Vite、React Flow 与官方 shadcn/ui Base Nova 交互组件。0.2.2 保留探案证据墙的错位纸张、图钉、状态印章和真实关系线，材质改为冷灰卡纸、细毡板与金属边框。网页随系统深浅色模式即时切换；原生 MCP 面板优先采用宿主提供的主题，计划、依据、菜单和原型共同切换。布局只影响展示，不改写保存的节点、原文、依据和关系；没有真实关系时不会补装饰线。窄屏采用可滚动的单列纸张。MCP Apps 面板通过宿主转发限定的插件接口，没有私有令牌或外部脚本。`whiteboard_open` 声明菜单入口，`whiteboard_begin` 带相同面板资源；插件格式依据 [OpenAI 文档](https://developers.openai.com/plugins/build/plugins)。
+
+日常开发使用 `npm run dev`：自动构建并启动隔离后台，界面为 `http://127.0.0.1:5199/`，后台端口 5220，数据在 `.test-data/development/`。开发代理校验本机 Host 与 Origin，首次访问自动建立 HttpOnly 会话；Cookie 按后台端口分开，正式白板的数据和会话不受影响。端口和数据目录可用 `WHITEBOARD_DEV_PORT`、`WHITEBOARD_PORT`、`WHITEBOARD_DATA_DIR` 显式配置。
+
+`npm test` 会先构建当前源码，避免测试旧的打包结果。测试覆盖后台升级和并发启动、恶意请求、并发偏好、保存通知、开发代理、语言回退和依赖导出。
 
 `node scripts/preview-mcp-panel.mjs` 启动真实 MCP Apps 人工验收宿主：5321 为界面，5322 为服务，独立 `.test-data/native-viewer/` 数据；它不代表 Codex 桌面菜单实显已通过。`node scripts/verify-implicit.mjs` 使用真实 Codex 模型在隔离目录验证自然语言触发、反驳后的增量更新和普通修复不触发，会消耗模型额度，不纳入默认单元测试。
 
@@ -64,6 +74,10 @@ codex plugin remove product-whiteboard@product-whiteboard-local
 卸载保留本机资料；已启动的本机服务持续到退出或重启。
 
 ## 验收记录
+
+0.4.0：修复代码审查中的 7 项问题；新增简体中文、繁体中文、英语和系统字体。49 项测试通过，覆盖后台生命周期、保存通知、会话引导、语言与依赖导出。升级等待超时会保留交接记录，重试继续等待旧进程完成，避免并行写入。原生面板经实测可在同一实例切换项目，并自动显示 PUT 保存后的数据。
+
+依赖检查：`npm audit --omit=dev` 无告警。构建链的 `braces` 深层嵌套模式告警目前[上游未提供修复版本](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)；没有强制降级 shadcn 或打包器。shadcn CLI 已归为构建依赖，保留其随 UI 分发的 CSS 许可证；实际浏览器和后台打包模块清单用于核查该依赖没有进入运行包。
 
 0.3.1：开发进度沿用构思白板的毡布底板、冷灰纸纹、金属图钉、宋体标题与印章状态；阶段大节点和任务详情都采用同一材质。修正“定位当前阶段”后深链接未更新的问题。
 

@@ -15,8 +15,14 @@ for(const name of ['V0.1.2-ACCEPTANCE.md','v0.1.2-installed-conversation.png','v
 await fs.copyFile(path.join(root,'dist/index.html'),path.join(release,'ui/index.html'));
 for(const name of ['forest','art','journal'])await fs.copyFile(path.join(root,`src/assets/${name}.jpg`),path.join(release,`assets/${name}.jpg`));
 const banner="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);";
-for(const [entry,out] of [['http','app'],['mcp','mcp']])await build({entryPoints:[path.join(root,`server/${entry}.mjs`)],outfile:path.join(release,`server/${out}.mjs`),bundle:true,platform:'node',format:'esm',target:'node20',banner:{js:banner}});
+const runtimeInputs=new Set();
+for(const [entry,out] of [['http','app'],['mcp','mcp'],['runtime','runtime']]){
+  const result=await build({entryPoints:[path.join(root,`server/${entry}.mjs`)],outfile:path.join(release,`server/${out}.mjs`),bundle:true,platform:'node',format:'esm',target:'node20',banner:{js:banner},metafile:true});
+  Object.keys(result.metafile.inputs).forEach(input=>runtimeInputs.add(input));
+}
+await fs.mkdir(path.join(root,'.test-data'),{recursive:true});
+await fs.writeFile(path.join(root,'.test-data/runtime-inputs.json'),JSON.stringify([...runtimeInputs].sort(),null,2));
 const seed=await build({stdin:{contents:"export { freshBoard } from './src/model.ts';",resolveDir:root},write:false,bundle:true,platform:'node',format:'esm',loader:{'.jpg':'text'}});
 const {freshBoard}=await import(`data:text/javascript;base64,${Buffer.from(seed.outputFiles[0].text).toString('base64')}`);
 await fs.writeFile(path.join(release,'example.json'),JSON.stringify(freshBoard(),null,2));
-console.log('Plugin 0.3.1 packaged at release/product-whiteboard');
+console.log('Plugin 0.4.0 packaged at release/product-whiteboard');

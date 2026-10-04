@@ -20,7 +20,7 @@
 .progress-empty { justify-content: center; padding: 32px; }
 .project-overview { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 28px; margin: 30px 34px 14px; padding: 22px 28px; border: 1px solid var(--paper-edge); flex-shrink: 0; background-color: var(--card); background-image: var(--paper-image); background-size: 560px; box-shadow: 3px 7px 10px var(--shadow); }
 .project-heading { min-width: 0; }
-.project-heading h1 { font-family: var(--font-paper); font-size: 32px; font-weight: 900; line-height: 1.4; margin: 0 0 8px; letter-spacing: -.4px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 16px; }
+.project-heading h1 { font-family: var(--font-paper); font-size: 32px; font-weight: 700; line-height: 1.4; margin: 0 0 8px; letter-spacing: -.4px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 16px; }
 .project-heading h1 span { font-family: var(--font-sans); font-size: 16px; font-weight: 400; color: var(--muted-foreground); }
 .project-heading p { font-size: 14px; line-height: 1.7; margin: 0; color: var(--muted-foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 700px; min-height: 24px; }
 .project-totals { display: flex; align-items: center; gap: 22px; flex-shrink: 0; padding-left: 24px; border-left: 1px solid var(--rule); }
@@ -30,8 +30,8 @@
 .project-totals [data-slot=progress-indicator] { background: var(--project-done); }
 .project-totals .blocked-total { font-family: var(--font-paper); font-size: 25px; font-weight: 700; color: var(--project-blocked); margin: 0; border: 1px solid currentColor; padding: 4px 9px; transform: rotate(-4deg); white-space: nowrap; }
 .blocked-total span { font-size: 13px; font-weight: 400; margin-left: 5px; }
-.project-sync { margin: 0; color: var(--muted-foreground); font-size: 12px; display: flex; flex-direction: column; gap: 4px; white-space: nowrap; }
-.project-sync time { font-variant-numeric: tabular-nums; }
+.project-sync { margin: 0; color: var(--muted-foreground); font-size: 12px; display: flex; flex-direction: column; gap: 4px; white-space: normal; min-width: 72px; max-width: 124px; line-height: 1.4; }
+.project-sync time { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .project-sync[data-stale=true] { color: var(--project-review); }
 .project-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
 .project-map { position: relative; min-height: 0; min-width: 0; background: transparent; }
@@ -57,7 +57,7 @@
 .milestone-node .milestone-hit:focus-visible { outline: 3px solid var(--project-selected); outline-offset: 4px; }
 .milestone-title { display: flex; align-items: baseline; gap: 12px; min-height: 40px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
 .milestone-title > span { font-size: 20px; line-height: 1.4; font-weight: 550; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
-.milestone-title h3 { margin: 0; font-family: var(--font-paper); font-size: 27px; line-height: 1.4; font-weight: 900; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.milestone-title h3 { margin: 0; font-family: var(--font-paper); font-size: 27px; line-height: 1.4; font-weight: 700; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .project-status { border-color: color-mix(in srgb, currentColor 45%, transparent); color: var(--project-dim); background: transparent; font-size: 14px; font-weight: 400; height: auto; padding: 4px 9px; gap: 6px; line-height: 1.4; }
 .project-status[data-status=done] { color: var(--project-done); }
 .project-status[data-status=in_progress] { color: var(--project-selected); }
@@ -84,7 +84,7 @@
 .project-inspector { height: 100%; overflow-y: auto; padding: 28px 24px; background-color: var(--card); background-image: var(--paper-image); background-size: 560px; color: var(--foreground); }
 .inspector-heading > div { display: flex; align-items: baseline; gap: 12px; }
 .inspector-heading > div > span { font-size: 23px; color: var(--muted-foreground); }
-.inspector-heading h2 { font-family: var(--font-paper); font-size: 27px; line-height: 1.4; margin: 0; font-weight: 900; }
+.inspector-heading h2 { font-family: var(--font-paper); font-size: 27px; line-height: 1.4; margin: 0; font-weight: 700; }
 .inspector-heading .project-status { margin-top: 14px; }
 .inspector-heading p { color: var(--muted-foreground); line-height: 1.8; font-size: 14px; margin: 14px 0 0; }
 .inspector-section { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--border); }
@@ -118,7 +118,7 @@
 .project-detail-sheet { --project-map: var(--popover); --project-surface: var(--muted); --project-dim: var(--muted-foreground); --project-selected: var(--primary); --project-done: var(--pending-stamp); --project-review: light-dark(#95630e, #e3bf70); --project-blocked: var(--stamp); width: min(480px, 95vw) !important; max-width: none !important; gap: 0; }
 .project-detail-sheet { background-color: var(--card); background-image: var(--paper-image); background-size: 560px; }
 .project-detail-sheet > [data-slot=sheet-header] { padding: 24px 24px 12px; }
-.project-detail-sheet [data-slot=sheet-title] { font-family: var(--font-paper); font-size: 25px; font-weight: 900; }
+.project-detail-sheet [data-slot=sheet-title] { font-family: var(--font-paper); font-size: 25px; font-weight: 700; }
 .project-detail-sheet .project-inspector { min-height: 0; flex: 1; padding-top: 8px; }
 .mobile-stage-details { display: none; }
 @media (min-width: 1440px) { .project-body { grid-template-columns: minmax(0, 1fr) 370px; } .project-desktop-inspector { display: block; } }
@@ -147,7 +147,7 @@
   .project-totals strong { font-size: 18px; }
   .project-totals .blocked-total { font-size: 18px; padding: 3px 6px; }
   .blocked-total span { font-size: 11px; margin-left: 3px; }
-  .project-sync { display: flex; margin-left: auto; font-size: 10px; }
+  .project-sync { display: flex; margin-left: auto; font-size: 10px; min-width: 60px; max-width: 80px; }
   .project-map-controls { right: 12px; bottom: 12px; }
   .project-map-controls button { min-height: 36px; }
   .mobile-stage-details { position: absolute; display: flex; left: 12px; right: 12px; bottom: 60px; height: 36px; font-size: 12px; background-color: var(--card); background-image: var(--paper-image); background-size: 560px; border: 1px solid var(--paper-edge); }

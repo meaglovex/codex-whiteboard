@@ -2,8 +2,9 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { request } from './runtime.mjs';
+import { APP_VERSION } from '../shared/version.mjs';
 
-export const panelUri = 'ui://product-whiteboard/board-v0.3.1.html';
+export const panelUri = `ui://product-whiteboard/board-v${APP_VERSION}.html`;
 export async function panelResource() {
   const html = await fs.readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), '../ui/index.html'), 'utf8');
   return { contents: [{

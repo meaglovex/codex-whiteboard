@@ -1,25 +1,31 @@
 import { App } from '@modelcontextprotocol/ext-apps';
 import { setHostTheme } from './theme';
+import { setHostLocale } from './i18n';
+import { createNativeSelection } from './nativeSelection';
+import { APP_VERSION } from '../shared/version.mjs';
 
 declare global { interface Window { __PRODUCT_WHITEBOARD_MCP__?: boolean } }
 export const inNativePanel = window.__PRODUCT_WHITEBOARD_MCP__ === true;
-const app = inNativePanel ? new App({ name: '产品白板', version: '0.3.1' }, {}, { autoResize: false }) : undefined;
-let boardId: string | undefined;
+const app = inNativePanel ? new App({ name: 'product-whiteboard', version: APP_VERSION }, {}, { autoResize: false }) : undefined;
+let inputBoardId: string | undefined;
+const selection = createNativeSelection();
+export const subscribeNativeSelection = selection.subscribe;
+export const getNativeSelection = selection.getSnapshot;
 let finishInitial: (() => void) | undefined;
 const initial = new Promise<void>(resolve => { finishInitial = resolve; });
 if (app) {
-  app.onhostcontextchanged = context => { if (context.theme) setHostTheme(context.theme); };
+  app.onhostcontextchanged = context => { if (context.theme) setHostTheme(context.theme); if ('locale' in context) setHostLocale(context.locale); };
   app.ontoolinput = ({ arguments: input }) => {
-    if (typeof input?.boardId === 'string') boardId = input.boardId;
+    if (typeof input?.boardId === 'string') inputBoardId = input.boardId;
   };
   app.ontoolresult = result => {
     const board = result.structuredContent?.board;
-    if (board && typeof board === 'object' && 'id' in board && typeof board.id === 'string') boardId = board.id;
+    if (!result.isError && board && typeof board === 'object' && 'id' in board) selection.confirm(board.id);
     finishInitial?.();
   };
 }
 const connection = app?.connect(undefined, { timeout: 15000 });
-void connection?.then(() => setHostTheme(app?.getHostContext()?.theme)).catch(() => {});
+void connection?.then(() => { const context = app?.getHostContext(); setHostTheme(context?.theme); setHostLocale(context?.locale); }).catch(() => {});
 
 export async function initialBoardId() {
   if (!app) {
@@ -31,7 +37,7 @@ export async function initialBoardId() {
   let timer: ReturnType<typeof setTimeout> | undefined;
   await Promise.race([initial, new Promise<void>(resolve => { timer = setTimeout(resolve, 1500); })]);
   if (timer) clearTimeout(timer);
-  return boardId;
+  return selection.getSnapshot().boardId || inputBoardId;
 }
 
 export async function panelRequest<T>(route: string, method: string, value?: unknown): Promise<T> {

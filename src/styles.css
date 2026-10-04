@@ -46,8 +46,8 @@
   --felt-image: url('./assets/charcoal-felt.jpg');
   --paper-texture: url('./assets/slate-paper.jpg');
   --paper-image: linear-gradient(var(--paper-wash), var(--paper-wash)), var(--paper-texture);
-  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --font-paper: 'Songti SC', 'Noto Serif CJK SC', 'STSong', 'SimSun', Georgia, serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-paper: var(--font-sans);
   --sidebar: var(--popover); --sidebar-foreground: var(--foreground); --sidebar-primary: var(--primary); --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-accent: var(--accent); --sidebar-accent-foreground: var(--accent-foreground); --sidebar-border: var(--border); --sidebar-ring: var(--ring);
   --chart-1: var(--primary); --chart-2: var(--live); --chart-3: var(--stamp); --chart-4: var(--muted-foreground); --chart-5: var(--foreground);
@@ -55,7 +55,7 @@
 :root[data-theme=light] { color-scheme: light; }
 :root[data-theme=dark] { color-scheme: dark; }
 
-@theme inline { --font-heading: var(--font-sans); --font-sans: 'Geist Variable', sans-serif; --color-sidebar-ring: var(--sidebar-ring); --color-sidebar-border: var(--sidebar-border); --color-sidebar-accent-foreground: var(--sidebar-accent-foreground); --color-sidebar-accent: var(--sidebar-accent); --color-sidebar-primary-foreground: var(--sidebar-primary-foreground); --color-sidebar-primary: var(--sidebar-primary); --color-sidebar-foreground: var(--sidebar-foreground); --color-sidebar: var(--sidebar); --color-chart-5: var(--chart-5); --color-chart-4: var(--chart-4); --color-chart-3: var(--chart-3); --color-chart-2: var(--chart-2); --color-chart-1: var(--chart-1); --color-ring: var(--ring); --color-input: var(--input); --color-border: var(--border); --color-destructive: var(--destructive); --color-accent-foreground: var(--accent-foreground); --color-accent: var(--accent); --color-muted-foreground: var(--muted-foreground); --color-muted: var(--muted); --color-secondary-foreground: var(--secondary-foreground); --color-secondary: var(--secondary); --color-primary-foreground: var(--primary-foreground); --color-primary: var(--primary); --color-popover-foreground: var(--popover-foreground); --color-popover: var(--popover); --color-card-foreground: var(--card-foreground); --color-card: var(--card); --color-foreground: var(--foreground); --color-background: var(--background); --radius-sm: calc(var(--radius) * 0.6); --radius-md: calc(var(--radius) * 0.8); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) * 1.4); --radius-2xl: calc(var(--radius) * 1.8); --radius-3xl: calc(var(--radius) * 2.2); --radius-4xl: calc(var(--radius) * 2.6); }
+@theme inline { --font-heading: var(--font-sans); --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; --color-sidebar-ring: var(--sidebar-ring); --color-sidebar-border: var(--sidebar-border); --color-sidebar-accent-foreground: var(--sidebar-accent-foreground); --color-sidebar-accent: var(--sidebar-accent); --color-sidebar-primary-foreground: var(--sidebar-primary-foreground); --color-sidebar-primary: var(--sidebar-primary); --color-sidebar-foreground: var(--sidebar-foreground); --color-sidebar: var(--sidebar); --color-chart-5: var(--chart-5); --color-chart-4: var(--chart-4); --color-chart-3: var(--chart-3); --color-chart-2: var(--chart-2); --color-chart-1: var(--chart-1); --color-ring: var(--ring); --color-input: var(--input); --color-border: var(--border); --color-destructive: var(--destructive); --color-accent-foreground: var(--accent-foreground); --color-accent: var(--accent); --color-muted-foreground: var(--muted-foreground); --color-muted: var(--muted); --color-secondary-foreground: var(--secondary-foreground); --color-secondary: var(--secondary); --color-primary-foreground: var(--primary-foreground); --color-primary: var(--primary); --color-popover-foreground: var(--popover-foreground); --color-popover: var(--popover); --color-card-foreground: var(--card-foreground); --color-card: var(--card); --color-foreground: var(--foreground); --color-background: var(--background); --radius-sm: calc(var(--radius) * 0.6); --radius-md: calc(var(--radius) * 0.8); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) * 1.4); --radius-2xl: calc(var(--radius) * 1.8); --radius-3xl: calc(var(--radius) * 2.2); --radius-4xl: calc(var(--radius) * 2.6); }
 
 @layer base { * { @apply border-border outline-ring/50; } body { @apply bg-background text-foreground; } html { @apply font-sans; } }
 html, body, #root { width: 100%; height: 100%; margin: 0; }
@@ -78,7 +78,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .board-canvas .react-flow__pane { cursor: grab; }
 .board-canvas .react-flow__pane.dragging { cursor: grabbing; }
 .board-intro { height: 100%; padding: 20px 30px; background-color: var(--card); background-image: var(--paper-image); background-size: 560px; position: relative; box-shadow: 2px 6px 8px var(--shadow); transform: rotate(.1deg); }
-.board-intro h1 { margin: 0 0 10px; font-family: var(--font-paper); font-size: 46px; line-height: 1.15; font-weight: 900; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-intro h1 { margin: 0 0 10px; font-family: var(--font-paper); font-size: 46px; line-height: 1.15; font-weight: 700; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-intro p { margin: 0; font-size: 15px; line-height: 1.65; color: var(--foreground); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .paper-tape { position: absolute; width: 92px; height: 32px; background: var(--tape); border-left: 1px dotted var(--tape-edge); border-right: 1px dotted var(--tape-edge); box-shadow: 0 1px 2px var(--shadow); pointer-events: none; }
 .tape-left { left: -22px; top: -5px; transform: rotate(-29deg); }
@@ -90,7 +90,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .presentation-card { position: relative; width: 100%; height: 100%; transform: rotate(var(--paper-tilt, 0deg)); transform-origin: 50% 12px; filter: drop-shadow(3px 8px 4px var(--shadow)); }
 .presentation-card [data-slot=card] { height: 100%; min-height: 0; border-radius: 1px 3px 2px 1px; padding: 32px 0 20px; gap: 20px; --card-spacing: 32px; border: 1px solid var(--paper-edge); box-shadow: inset 0 0 24px var(--paper-inset); background-color: var(--card); background-image: var(--paper-image); background-size: 560px; }
 .presentation-card [data-slot=card-header] { display: flex; flex-direction: column; gap: 14px; flex-shrink: 0; }
-.presentation-card [data-slot=card-title] { font-family: var(--font-paper); font-size: 27px; line-height: 1.4; font-weight: 900; overflow-wrap: anywhere; }
+.presentation-card [data-slot=card-title] { font-family: var(--font-paper); font-size: 27px; line-height: 1.4; font-weight: 700; overflow-wrap: anywhere; text-wrap: balance; }
 .presentation-card .card-kind { display: none; }
 .presentation-card[data-paper=lead] .card-kind { display: block; background: var(--secondary); color: var(--foreground); padding: 3px 10px; font-size: 15px; border-radius: 2px; }
 .presentation-card[data-paper=lead] [data-slot=card-title] { font-size: 29px; }
@@ -215,3 +215,5 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .plan-document h2 { font-size: 20px; }
   .plan-receipt { margin-inline: 22px; }
 }
+
+@media (max-width: 1100px) { .board-topbar .sync-label { display: none; } }

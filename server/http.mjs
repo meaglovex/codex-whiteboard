@@ -7,6 +7,7 @@ import { atomicWrite, createBoard, listBoards, getBoard, saveBoard, changeBoard,
 import { syncConversation } from '../shared/sync.mjs';
 import { brainstorm } from './model.mjs';
 import { parseBoard, cardSchema } from './schema.mjs';
+import { APP_VERSION, WIRE_VERSION, RUNTIME_CAPABILITIES } from '../shared/version.mjs';
 
 export const packageRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const busy=new Set();
@@ -16,23 +17,34 @@ function blank(title,goal=''){return {version:1,id:randomUUID(),title,goal,inspi
 
 export async function startHttp(port=5210){
   await fs.mkdir(dataRoot,{recursive:true,mode:0o700});
-  if(!(await listBoards()).length){const example=JSON.parse(await fs.readFile(path.join(packageRoot,'example.json'),'utf8'));await createBoard(example);}
+  const existing=await listBoards();
+  if(!existing.length){const example=JSON.parse(await fs.readFile(path.join(packageRoot,'example.json'),'utf8'));await createBoard(example);}
+  const active=await getActiveSession();
+  if(existing.some(board=>board.id===active.boardId))await activateBoard(active.boardId);
   const token=randomBytes(32).toString('hex');
+  const cookieName=`whiteboard_session_${port}`;
+  const cookie=`${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/`;
   const server=http.createServer(async(req,res)=>{
     const expected=`127.0.0.1:${port}`,host=req.headers.host;
     if(host!==expected&&host!==`localhost:${port}`){json(res,403,{error:'拒绝不匹配的主机'});return;}
-    const url=new URL(req.url,`http://${expected}`);
-    if(req.headers.origin&&!['http://'+expected,`http://localhost:${port}`,'http://127.0.0.1:5199'].includes(req.headers.origin)){json(res,403,{error:'拒绝跨站访问'});return;}
+    if(req.headers.origin&&!['http://'+expected,`http://localhost:${port}`].includes(req.headers.origin)){json(res,403,{error:'拒绝跨站访问'});return;}
     if(req.headers['sec-fetch-site']==='cross-site'){json(res,403,{error:'拒绝跨站访问'});return;}
     try{
-      if(url.pathname==='/api/health'){json(res,200,{name:'product-whiteboard',version:'0.1.2',appVersion:'0.3.1',busyBoards:[...busy]});return;}
+      const url=new URL(req.url,`http://${expected}`);
+      if(url.pathname==='/api/health'){json(res,200,{name:'product-whiteboard',version:WIRE_VERSION,appVersion:APP_VERSION,capabilities:RUNTIME_CAPABILITIES,busyBoards:[...busy]});return;}
+      if(url.pathname==='/api/session/bootstrap'&&req.method==='GET'){res.setHeader('Set-Cookie',cookie);json(res,200,{ok:true});return;}
       if(!url.pathname.startsWith('/api/')){
         if(req.method!=='GET'||url.pathname!=='/'){json(res,404,{error:'页面不存在'});return;}
-        res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Set-Cookie':`whiteboard_session=${token}; HttpOnly; SameSite=Strict; Path=/`,'Content-Security-Policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'"});res.end(await fs.readFile(path.join(packageRoot,'ui/index.html')));return;
+        const html=await fs.readFile(path.join(packageRoot,'ui/index.html'));
+        res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Set-Cookie':cookie,'Content-Security-Policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'"});res.end(html);return;
       }
-      const auth=req.headers.authorization===`Bearer ${token}`||req.headers.cookie?.split(';').some(c=>c.trim()===`whiteboard_session=${token}`);
+      const auth=req.headers.authorization===`Bearer ${token}`||req.headers.cookie?.split(';').some(c=>c.trim()===`${cookieName}=${token}`);
       if(!auth){json(res,401,{error:'请从本机白板页面重新打开'});return;}
       if(['POST','PUT','PATCH'].includes(req.method)&&!req.headers['content-type']?.startsWith('application/json')){json(res,415,{error:'请求需要 JSON 内容'});return;}
+      if(url.pathname==='/api/runtime/stop'&&req.method==='POST'){
+        if(busy.size){json(res,409,{error:'白板正在讨论，暂时不能升级后台。'});return;}
+        json(res,200,{stopping:true});server.close();return;
+      }
       if(url.pathname==='/api/session'&&req.method==='GET'){json(res,200,await getActiveSession());return;}
       if(url.pathname==='/api/session/begin'&&req.method==='POST'){json(res,200,await beginSession(await body(req)));return;}
       if(url.pathname==='/api/boards'&&req.method==='GET'){json(res,200,await listBoards());return;}
@@ -45,7 +57,7 @@ export async function startHttp(port=5210){
       const [,id,action]=match;
       if(!action&&req.method==='GET'){json(res,200,{...await getBoard(id),busy:busy.has(id)});return;}
       if(!action&&req.method==='PUT'){const input=await body(req);json(res,200,await saveBoard(id,input.base,input.board,input.revision));return;}
-      if(action==='export'&&req.method==='POST'){json(res,200,await exportBoard(id));return;}
+      if(action==='export'&&req.method==='POST'){const input=await body(req);if(input.locale!==undefined&&(typeof input.locale!=='string'||input.locale.length>100))throw new Error('无效的语言设置');json(res,200,await exportBoard(id,input.locale));return;}
       if(action==='plan'&&req.method==='POST'){json(res,200,await savePlan(id,await body(req)));return;}
       if(action==='progress'&&req.method==='POST'){json(res,200,await saveProgress(id,await body(req)));return;}
       if(action==='sync'&&req.method==='POST'){const input=await body(req);const state=await changeBoard(id,b=>syncConversation(b,input));await activateBoard(id);json(res,200,state);return;}
@@ -71,10 +83,10 @@ export async function startHttp(port=5210){
         }finally{busy.delete(id);}return;
       }
       json(res,405,{error:'不支持的操作'});
-    }catch(e){json(res,e.status||400,{error:e.name==='ZodError'?'白板数据格式不完整，请检查内容':e.message||'操作失败'});}
+    }catch(e){if(res.headersSent){res.destroy();return;}json(res,e.status||400,{error:e.code==='ERR_INVALID_URL'?'无效的请求地址':e.name==='ZodError'?'白板数据格式不完整，请检查内容':e.message||'操作失败'});}
   });
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
-  await atomicWrite(path.join(dataRoot,'runtime.json'),{port,pid:process.pid,token,version:'0.1.2'});
+  await atomicWrite(path.join(dataRoot,'runtime.json'),{port,pid:process.pid,token,version:WIRE_VERSION,appVersion:APP_VERSION,entrypoint:fileURLToPath(import.meta.url)});
   return server;
 }
 if(process.argv.includes('--serve')){

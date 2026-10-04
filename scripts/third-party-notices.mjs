@@ -4,7 +4,8 @@ export async function thirdPartyNotices(root){
   const lock=JSON.parse(await fs.readFile(path.join(root,'package-lock.json'),'utf8'));
   const sections=[];
   for(const [location,meta]of Object.entries(lock.packages||{})){
-    if(!location||meta.dev||meta.link)continue;
+    // shadcn's imported CSS ships in the UI even though its CLI is a build dependency.
+    if(!location||meta.dev&&location!=='node_modules/shadcn'||meta.link)continue;
     const dir=path.join(root,location);let pkg;
     try{pkg=JSON.parse(await fs.readFile(path.join(dir,'package.json'),'utf8'));}catch(e){if(meta.optional&&e.code==='ENOENT')continue;throw e;}
     const names=(await fs.readdir(dir)).filter(n=>/^licen[cs]e(?:[._-]|$)/i.test(n));

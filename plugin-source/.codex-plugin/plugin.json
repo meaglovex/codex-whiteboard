@@ -1,6 +1,6 @@
 {
   "name": "product-whiteboard",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "构思时整理核心想法与多层依据，开发时按真实任务、验收和阻塞更新项目进度。",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

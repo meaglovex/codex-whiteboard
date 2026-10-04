@@ -17,6 +17,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from './components/ui/empty';
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import useBoard from './useBoard';
+import { useI18n } from './i18n';
 import { inNativePanel } from './nativeBridge';
 
 const nodeTypes = { boardCard: BoardCard, boardHeading: BoardHeading };
@@ -30,18 +31,20 @@ function Branches({ details }: { details: Detail[] }) {
 
 export default function App() {
   const { board, boards, ready, error, following, openBoard, follow, exportFiles } = useBoard();
+  const { t, errorText } = useI18n();
+  const displayBoard = useMemo(() => board.id === 'waiting' ? { ...board, title: t('newIdea'), goal: t('waitingGoal') } : board, [board, t]);
   const flow = useReactFlow<CanvasNode>();
   const [detailId, setDetailId] = useState<string>();
   const [planOpen, setPlanOpen] = useState(false);
   const [view, setView] = useState<'discovery' | 'development'>(() => new URLSearchParams(location.search).get('view') === 'development' ? 'development' : 'discovery');
   const previousPhase = useRef<{ boardId: string; phase?: string }>({ boardId: 'waiting' });
-  const [notice, setNotice] = useState<{ title: string; body: string }>();
+  const [notice, setNotice] = useState<{ titleKey: string; body: string }>();
   const [updatedIds, setUpdatedIds] = useState<string[]>([]);
   const [canvasWidth, setCanvasWidth] = useState(0);
   const narrow = canvasWidth > 0 && canvasWidth < 760;
   const canvas = useRef<HTMLElement>(null);
   const fingerprints = useRef(new Map<string, string>());
-  const nodes = useMemo(() => evidenceLayout(board, narrow), [board, narrow]);
+  const nodes = useMemo(() => evidenceLayout(displayBoard, narrow), [displayBoard, narrow]);
   const edges = useMemo(() => board.edges.map(edge => ({ ...edge, type: 'thread', ...(narrow ? { sourceHandle: 'bottom', targetHandle: 'top' } : {}) })), [board.edges, narrow]);
   const fit = useCallback(() => { void flow.fitView({ padding: .06, minZoom: .2, maxZoom: 1.08, duration: 240 }); }, [flow]);
   useEffect(() => {
@@ -80,7 +83,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [board.id, board.nodes.length, canvasWidth, narrow, fit, flow, view]);
   const detail = board.nodes.find(n => n.id === detailId)?.data;
-  const run = (operation: () => Promise<unknown>) => { void operation().catch(e => setNotice({ title: '操作未完成', body: (e as Error).message })); };
+  const run = (operation: () => Promise<unknown>) => { void operation().catch(e => setNotice({ titleKey: 'operationFailed', body: (e as Error).message })); };
 
   const changeView = (value: unknown) => {
     if (value !== 'discovery' && value !== 'development') return;
@@ -89,28 +92,28 @@ export default function App() {
   };
   return <Tabs className="board-app" value={view} onValueChange={changeView}>
     <header className="board-topbar">
-      <div className="board-brand"><PanelsTopLeft aria-hidden="true" /><strong>产品白板</strong></div>
-      <span className="board-title">{board.id === 'waiting' ? '从一个想法开始' : board.title}</span>
-      <TabsList className="board-mode-tabs" aria-label="看板阶段"><TabsTrigger value="discovery">产品构思</TabsTrigger><TabsTrigger value="development">开发进度</TabsTrigger></TabsList>
+      <div className="board-brand"><PanelsTopLeft aria-hidden="true" /><strong>{t('brandName')}</strong></div>
+      <span className="board-title">{board.id === 'waiting' ? t('startIdea') : board.title}</span>
+      <TabsList className="board-mode-tabs" aria-label={t('boardViews')}><TabsTrigger value="discovery">{t('ideasTab')}</TabsTrigger><TabsTrigger value="development">{t('progressTab')}</TabsTrigger></TabsList>
       <div className="board-topbar-actions">
-        <Badge variant="secondary" className="sync-label" data-live={!board.example && !error}>{board.example ? '示例白板' : view === 'development' ? board.progress ? '随开发更新' : '进度待同步' : following ? '随对话更新' : '当前白板'}</Badge>
-        <Button variant="ghost" size="sm" className="plan-entry" disabled={!ready} onClick={() => { setDetailId(undefined); setPlanOpen(true); }}><FileText data-icon="inline-start" />查看计划</Button>
-        {view === 'discovery' && <Button variant="ghost" size="icon" aria-label="查看全部想法" onClick={fit} disabled={!board.nodes.length}><Maximize data-icon="inline-start" /></Button>}
+        <Badge variant="secondary" className="sync-label" data-live={!board.example && !error}>{t(board.example ? 'exampleBoard' : view === 'development' ? board.progress ? 'followsDevelopment' : 'progressPending' : following ? 'followsConversation' : 'currentBoard')}</Badge>
+        <Button variant="ghost" size="sm" className="plan-entry" disabled={!ready} onClick={() => { setDetailId(undefined); setPlanOpen(true); }}><FileText data-icon="inline-start" />{t('viewPlan')}</Button>
+        {view === 'discovery' && <Button variant="ghost" size="icon" aria-label={t('viewAllIdeas')} onClick={fit} disabled={!board.nodes.length}><Maximize data-icon="inline-start" /></Button>}
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="白板选项" />}><MoreHorizontal data-icon="inline-start" /></DropdownMenuTrigger>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={t('boardOptions')} />}><MoreHorizontal data-icon="inline-start" /></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60">
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => run(follow)}>跟随当前讨论</DropdownMenuItem>
-              <DropdownMenuItem disabled={board.id === 'waiting'} onClick={() => run(async () => { const files = await exportFiles(); setNotice({ title: '开发上下文已保存', body: `${files.markdown}\n${files.json}` }); })}>保存开发上下文</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => run(follow)}>{t('followConversation')}</DropdownMenuItem>
+              <DropdownMenuItem disabled={board.id === 'waiting'} onClick={() => run(async () => { const files = await exportFiles(); setNotice({ titleKey: 'contextSaved', body: `${files.markdown}\n${files.json}` }); })}>{t('saveContext')}</DropdownMenuItem>
             </DropdownMenuGroup>
-            {!!boards.length && <><DropdownMenuSeparator /><DropdownMenuGroup><DropdownMenuLabel>已有白板</DropdownMenuLabel>{boards.map(b => <DropdownMenuItem key={b.id} onClick={() => run(() => openBoard(b.id))}>{b.title}{b.example ? ' · 示例' : ''}</DropdownMenuItem>)}</DropdownMenuGroup></>}
+            {!!boards.length && <><DropdownMenuSeparator /><DropdownMenuGroup><DropdownMenuLabel>{t('existingBoards')}</DropdownMenuLabel>{boards.map(b => <DropdownMenuItem key={b.id} onClick={() => run(() => openBoard(b.id))}>{b.title}{b.example ? ` · ${t('example')}` : ''}</DropdownMenuItem>)}</DropdownMenuGroup></>}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </header>
-    {(error || notice) && <Alert variant={error ? 'destructive' : 'default'} className="rounded-none border-x-0 border-t-0"><AlertTitle>{error ? '白板暂时无法更新' : notice?.title}</AlertTitle><AlertDescription className="whitespace-pre-wrap break-all">{error || notice?.body}</AlertDescription></Alert>}
+    {(error || notice) && <Alert variant={error ? 'destructive' : 'default'} className="rounded-none border-x-0 border-t-0"><AlertTitle>{t(error ? 'cannotUpdate' : notice?.titleKey || 'operationFailed')}</AlertTitle><AlertDescription className="whitespace-pre-wrap break-all">{errorText(error || notice?.body || '')}</AlertDescription></Alert>}
     <TabsContent value="discovery" className="discovery-panel">
-    <main className="board-canvas" aria-label="产品核心白板" ref={canvas}>
+    <main className="board-canvas" aria-label={t('ideaCanvas')} ref={canvas}>
       <CardActions.Provider value={{ open: setDetailId, updatedIds }}>
         <ReactFlow<CanvasNode> key={board.id} nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
           fitView fitViewOptions={{ padding: .06, minZoom: .2, maxZoom: 1.08 }}
@@ -118,15 +121,15 @@ export default function App() {
           nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag panOnScroll={narrow} zoomOnScroll={!narrow} zoomOnDoubleClick={false}
           minZoom={.2} maxZoom={1.8} deleteKeyCode={null} proOptions={{ hideAttribution: true }} />
       </CardActions.Provider>
-      {!board.nodes.length && <div className="board-empty"><Empty><EmptyHeader><EmptyMedia variant="icon"><MessageCircle /></EmptyMedia><EmptyTitle>{ready ? '在 Codex 里，把想法说出来。' : '正在连接白板…'}</EmptyTitle><EmptyDescription>{ready ? '例如：“我想做一个像相册一样能回看的日记产品。”\nCodex 会边讨论边把核心想法放到这里。' : '稍候就能看到当前讨论。'}</EmptyDescription></EmptyHeader></Empty></div>}
+      {!board.nodes.length && <div className="board-empty"><Empty><EmptyHeader><EmptyMedia variant="icon"><MessageCircle /></EmptyMedia><EmptyTitle>{t(ready ? 'discussInCodex' : 'connecting')}</EmptyTitle><EmptyDescription>{t(ready ? 'ideaExample' : 'loadingConversation')}</EmptyDescription></EmptyHeader></Empty></div>}
     </main>
-    <footer className="board-footnote"><span><MessageCircle aria-hidden="true" />{narrow ? '滚动画布查看，在 Codex 里继续讨论。' : '在 Codex 里继续讨论，这页会跟着更新。'}</span>{!!board.nodes.length && <span className="revision-label"><CircleCheck aria-hidden="true" />{board.nodes.filter(n => n.data.pinned).length} 个共识 · {board.nodes.length} 个核心想法</span>}</footer>
+    <footer className="board-footnote"><span><MessageCircle aria-hidden="true" />{t(narrow ? 'continueDiscussionMobile' : 'continueDiscussion')}</span>{!!board.nodes.length && <span className="revision-label"><CircleCheck aria-hidden="true" />{t('ideaCounts', { consensus: board.nodes.filter(n => n.data.pinned).length, ideas: board.nodes.length })}</span>}</footer>
     </TabsContent>
     <TabsContent value="development" className="development-panel"><ProgressBoard key={board.id} board={board} error={error} /></TabsContent>
     <PlanSheet key={`${board.id}:${board.plan?.updatedAt || 'empty'}`} plan={board.plan} open={planOpen} onOpenChange={setPlanOpen} onSave={exportFiles} />
     <Sheet open={!!detail} onOpenChange={open => { if (!open) setDetailId(undefined); }}>
-      <SheetContent className="evidence-details"><SheetHeader><SheetTitle>{detail?.title}</SheetTitle><SheetDescription>核心结论下面的依据、分支与开发细节。</SheetDescription></SheetHeader>
-        {detail && <div className="detail-body">{!!detail.image && <img className="mb-4 w-full rounded-lg" src={assetImage(detail.image)} alt={detail.title} />}<p className="mb-4">{detail.body}</p>{!!detail.steps?.length && <ol className="detail-steps">{detail.steps.map((step, i) => <li key={i}><strong>{step.title}</strong><p>{step.sub}</p></li>)}</ol>}<Branches details={detail.details} />{!detail.details.length && <p className="text-muted-foreground">继续在 Codex 里讨论，依据会留在这里。</p>}<p className="mt-6 flex items-center gap-2 text-muted-foreground"><ArrowUpRight aria-hidden="true" className="size-4" />需要调整时，直接告诉 Codex。</p></div>}
+      <SheetContent className="evidence-details"><SheetHeader><SheetTitle>{detail?.title}</SheetTitle><SheetDescription>{t('evidenceDescription')}</SheetDescription></SheetHeader>
+        {detail && <div className="detail-body">{!!detail.image && <img className="mb-4 w-full rounded-lg" src={assetImage(detail.image)} alt={detail.title} />}<p className="mb-4">{detail.body}</p>{!!detail.steps?.length && <ol className="detail-steps">{detail.steps.map((step, i) => <li key={i}><strong>{step.title}</strong><p>{step.sub}</p></li>)}</ol>}<Branches details={detail.details} />{!detail.details.length && <p className="text-muted-foreground">{t('noEvidenceYet')}</p>}<p className="mt-6 flex items-center gap-2 text-muted-foreground"><ArrowUpRight aria-hidden="true" className="size-4" />{t('askCodexToChange')}</p></div>}
       </SheetContent>
     </Sheet>
   </Tabs>;

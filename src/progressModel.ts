@@ -1,4 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
+import { translate, type Locale } from '../shared/i18n.mjs';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'blocked' | 'done' | 'cancelled';
 export type MilestoneStatus = TaskStatus | 'locked';
@@ -9,7 +10,7 @@ export type ProgressEvent = { id: string; at: string; summary: string; changes: 
 export type ProjectProgress = { milestones: Milestone[]; tasks: ProjectTask[]; summary: string; updatedAt: string; events: ProgressEvent[]; receipts: { id: string; hash: string }[] };
 export type MilestoneSummary = { milestone: Milestone; tasks: ProjectTask[]; status: MilestoneStatus; done: number; total: number; next: string; number: number };
 export type MilestoneNode = Node<MilestoneSummary & { selected: boolean; compact: boolean }, 'milestone'>;
-export const statusLabels: Record<MilestoneStatus, string> = { todo: '未开始', in_progress: '进行中', review: '待验收', blocked: '受阻', done: '已完成', locked: '待解锁', cancelled: '已取消' };
+export const statusLabel = (status: MilestoneStatus, locale: Locale = 'zh-CN') => translate(locale, 'status.' + status);
 const priority: Record<TaskStatus, number> = { in_progress: 0, blocked: 1, review: 2, todo: 3, done: 4, cancelled: 5 };
 
 export function taskCounts(tasks: ProjectTask[]) {
@@ -29,7 +30,7 @@ export function orderedMilestones(milestones: Milestone[]) {
   milestones.forEach(visit);
   return result;
 }
-export function milestoneSummaries(progress: ProjectProgress): MilestoneSummary[] {
+export function milestoneSummaries(progress: ProjectProgress, locale: Locale = 'zh-CN'): MilestoneSummary[] {
   const statuses = new Map<string, MilestoneStatus>();
   return orderedMilestones(progress.milestones).map((milestone, index) => {
     const tasks = progress.tasks.filter(task => task.milestoneId === milestone.id);
@@ -46,7 +47,7 @@ export function milestoneSummaries(progress: ProjectProgress): MilestoneSummary[
     statuses.set(milestone.id, status);
     const nextTask = [...included].filter(task => task.status !== 'done').sort((a, b) => priority[a.status] - priority[b.status])[0];
     const prerequisite = progress.milestones.find(item => milestone.dependsOn.includes(item.id) && statuses.get(item.id) !== 'done');
-    const next = status === 'locked' && prerequisite ? `前置：${prerequisite.title}` : nextTask ? (nextTask.status === 'blocked' ? nextTask.blocker : nextTask.title) : total ? milestone.description || '本阶段任务已完成' : '尚未拆分任务';
+    const next = status === 'locked' && prerequisite ? translate(locale, 'prerequisite', { title: prerequisite.title }) : nextTask ? (nextTask.status === 'blocked' ? nextTask.blocker : nextTask.title) : total ? milestone.description || translate(locale, 'stageComplete') : translate(locale, 'tasksNotDefined');
     return { milestone, tasks, status, done, total, next, number: index + 1 };
   });
 }
