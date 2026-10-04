@@ -47,21 +47,24 @@ function ProgressMap({ board, error }: { board: BoardState; error: string }) {
     const node = graph.nodes.find(entry => entry.id === id);
     if (node) void flow.setCenter(node.position.x + (node.width || 300) / 2, node.position.y + (node.height || 244) / 2, { zoom: compact ? Math.min(1, (size.width - 30) / 330) : 1, duration: 220 });
   }, [graph.nodes, compact, flow, size.width]);
-  const fit = useCallback(() => { void flow.fitView({ padding: .08, minZoom: .85, maxZoom: 1, duration: 220 }); }, [flow]);
+  const fit = useCallback(() => { void flow.fitView({ padding: .08, minZoom: .8, maxZoom: 1, duration: 220 }); }, [flow]);
   useEffect(() => {
     if (!size.width) return;
     const timer = setTimeout(() => { if (compact || size.height < 580 || graph.nodes.length > 6) focus(selected?.milestone.id); else fit(); }, 100);
     return () => clearTimeout(timer);
   // Only geometry changes reposition the viewport. Live updates must not move a user's reading target.
   }, [size.width, size.height, compact, graph.nodes.length]);
+  const rememberSelection = (id: string) => {
+    if (!inNativePanel) { const url = new URL(location.href); url.searchParams.set('milestone', id); url.searchParams.set('view', 'development'); history.replaceState(null, '', url); }
+  };
   const select = (id: string) => {
     manualSelection.current = true; setSelectedId(id); if (!docked) setInspectorOpen(true);
-    if (!inNativePanel) { const url = new URL(location.href); url.searchParams.set('milestone', id); url.searchParams.set('view', 'development'); history.replaceState(null, '', url); }
+    rememberSelection(id);
   };
   const ageMinutes = Math.max(0, Math.floor((now - Date.parse(progress.updatedAt)) / 60000));
   const timestamp = new Date(progress.updatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
   return <section className="progress-workspace" aria-label="项目开发进度">
-    <header className="project-overview"><div className="project-heading"><h1>{board.title}<span>开发进度</span></h1><p aria-live="polite">{progress.summary}</p></div>
+    <header className="project-overview"><span className="paper-tape tape-left" aria-hidden="true" /><span className="paper-tape tape-right" aria-hidden="true" /><div className="project-heading"><h1>{board.title}<span>开发进度</span></h1><p aria-live="polite">{progress.summary}</p></div>
       <div className="project-totals"><div><strong>{counts.done} / {counts.total}</strong><span>项已完成</span><Progress value={counts.ratio * 100} aria-label="按任务数量计算的完成度" /></div>
         {!!counts.blocked && <p className="blocked-total">{counts.blocked}<span>项受阻</span></p>}
         <p className="project-sync" data-stale={!!error || ageMinutes >= 15}>{error ? '同步中断，保留上次数据' : ageMinutes >= 15 ? `已 ${ageMinutes} 分钟未更新` : '最近同步'}<time dateTime={progress.updatedAt}>{timestamp}</time></p>
@@ -70,13 +73,13 @@ function ProgressMap({ board, error }: { board: BoardState; error: string }) {
     <div className="project-body">
       <div className="project-map" ref={canvas}>
         <MilestoneActions.Provider value={{ select }}>
-          <ReactFlow<MilestoneNode> nodes={graph.nodes} edges={graph.edges} nodeTypes={nodeTypes} fitView={!compact} fitViewOptions={{ padding: .08, minZoom: .85, maxZoom: 1 }}
+          <ReactFlow<MilestoneNode> nodes={graph.nodes} edges={graph.edges} nodeTypes={nodeTypes} fitView={!compact} fitViewOptions={{ padding: .08, minZoom: .8, maxZoom: 1 }}
             onNodeClick={(event, node) => { if (!(event.target as HTMLElement).closest('button')) select(node.id); }}
             nodesDraggable={false} nodesConnectable={false} nodesFocusable={false} edgesFocusable={false} elementsSelectable={false} deleteKeyCode={null} minZoom={.4} maxZoom={1.5}
             zoomOnDoubleClick={false} panOnScroll={compact} zoomOnScroll={!compact} proOptions={{ hideAttribution: true }}
             defaultEdgeOptions={{ type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--project-route-color)' } }} />
         </MilestoneActions.Provider>
-        <div className="project-map-controls"><Button variant="outline" size="icon" aria-label="缩小进度图" onClick={() => void flow.zoomOut()}><Minus /></Button><Button variant="outline" size="icon" aria-label="放大进度图" onClick={() => void flow.zoomIn()}><Plus /></Button><Button variant="outline" size="sm" onClick={fit}><Maximize data-icon="inline-start" />适应视图</Button><Button variant="outline" size="icon" aria-label="定位当前阶段" onClick={() => { manualSelection.current = false; if (current) { setSelectedId(current.milestone.id); focus(current.milestone.id); } }}><Crosshair /></Button></div>
+        <div className="project-map-controls"><Button variant="outline" size="icon" aria-label="缩小进度图" onClick={() => void flow.zoomOut()}><Minus /></Button><Button variant="outline" size="icon" aria-label="放大进度图" onClick={() => void flow.zoomIn()}><Plus /></Button><Button variant="outline" size="sm" onClick={fit}><Maximize data-icon="inline-start" />适应视图</Button><Button variant="outline" size="icon" aria-label="定位当前阶段" onClick={() => { manualSelection.current = false; if (current) { setSelectedId(current.milestone.id); focus(current.milestone.id); rememberSelection(current.milestone.id); } }}><Crosshair /></Button></div>
         {compact && selected && <Button variant="secondary" className="mobile-stage-details" onClick={() => setInspectorOpen(true)}>查看任务 · {selected.milestone.title}</Button>}
       </div>
       {docked && selected && <div className="project-desktop-inspector"><TaskInspector key={selected.milestone.id} item={selected} progress={progress} /></div>}

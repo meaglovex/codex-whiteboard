@@ -25,7 +25,7 @@ export async function startHttp(port=5210){
     if(req.headers.origin&&!['http://'+expected,`http://localhost:${port}`,'http://127.0.0.1:5199'].includes(req.headers.origin)){json(res,403,{error:'拒绝跨站访问'});return;}
     if(req.headers['sec-fetch-site']==='cross-site'){json(res,403,{error:'拒绝跨站访问'});return;}
     try{
-      if(url.pathname==='/api/health'){json(res,200,{name:'product-whiteboard',version:'0.1.2',appVersion:'0.3.0',busyBoards:[...busy]});return;}
+      if(url.pathname==='/api/health'){json(res,200,{name:'product-whiteboard',version:'0.1.2',appVersion:'0.3.1',busyBoards:[...busy]});return;}
       if(!url.pathname.startsWith('/api/')){
         if(req.method!=='GET'||url.pathname!=='/'){json(res,404,{error:'页面不存在'});return;}
         res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Set-Cookie':`whiteboard_session=${token}; HttpOnly; SameSite=Strict; Path=/`,'Content-Security-Policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'"});res.end(await fs.readFile(path.join(packageRoot,'ui/index.html')));return;

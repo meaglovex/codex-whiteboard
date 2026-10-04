@@ -33,7 +33,7 @@ if(current?.name==='product-whiteboard'){
   process.kill(runtime.pid,'SIGTERM');
   for(let i=0;i<60;i++){if(!await health())break;await new Promise(r=>setTimeout(r,100));}
 }
-const client=new Client({name:'product-whiteboard-local-installer',version:'0.3.0'});
+const client=new Client({name:'product-whiteboard-local-installer',version:'0.3.1'});
 try{
   await client.connect(new StdioClientTransport({command:process.execPath,args:['./server/mcp.mjs'],cwd:installed}));
   const opened=await client.callTool({name:'whiteboard_open',arguments:{boardId:'example'}});
