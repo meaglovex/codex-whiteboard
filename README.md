@@ -65,7 +65,7 @@ npm run verify:host
 
 `node scripts/preview-mcp-panel.mjs` 启动真实 MCP Apps 人工验收宿主：5321 为界面，5322 为服务，独立 `.test-data/native-viewer/` 数据；它不代表 Codex 桌面菜单实显已通过。`node scripts/verify-implicit.mjs` 使用真实 Codex 模型在隔离目录验证自然语言触发、反驳后的增量更新和普通修复不触发，会消耗模型额度，不纳入默认单元测试。
 
-构建包位于 `release/product-whiteboard/`，本机市场清单位于 `.agents/plugins/marketplace.json`。公开市场提交留待用户试用后处理。项目源码保存在私有 GitHub 仓库 [meaglovex/codex-whiteboard](https://github.com/meaglovex/codex-whiteboard)。
+构建包位于 `release/product-whiteboard/`，本机市场清单位于 `.agents/plugins/marketplace.json`。公开市场提交留待用户试用后处理。项目源码保存在公开 GitHub 仓库 [meaglovex/codex-whiteboard](https://github.com/meaglovex/codex-whiteboard)。
 
 ```bash
 codex plugin remove product-whiteboard@product-whiteboard-local
