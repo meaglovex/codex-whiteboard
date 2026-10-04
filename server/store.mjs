@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
-import { parseBoard, preferencesSchema } from './schema.mjs';
+import { parseBoard, preferencesSchema, planInputSchema } from './schema.mjs';
 import { mergeBoard } from '../shared/merge.mjs';
 import { toMarkdown } from '../shared/export.mjs';
 export { toMarkdown } from '../shared/export.mjs';
@@ -23,7 +23,19 @@ export async function changeBoard(id,fn){return serial(async()=>{const current=a
 export async function saveBoard(id,base,local,revision){return changeBoard(id,(remote,current)=>{base=parseBoard(base);local=parseBoard(local);if(base.id!==id||local.id!==id)throw new Error('白板 ID 不一致');return current.revision===revision?local:mergeBoard(base,local,remote);});}
 export async function getPreferences(){return preferencesSchema.parse(await read(path.join(dataRoot,'preferences.json'),{}));}
 export async function setPreferences(values){const current=await getPreferences();const result=preferencesSchema.parse({...current,...values});await atomicWrite(path.join(dataRoot,'preferences.json'),result);return result;}
-export async function exportBoard(id){const {board}=await getBoard(id);const dir=path.join(dataRoot,'exports',`${id}-${Date.now()}`);const json=path.join(dir,'whiteboard.json'),markdown=path.join(dir,'development-context.md');await atomicWrite(json,board);await atomicWrite(markdown,toMarkdown(board));return {json,markdown};}
+export async function exportBoard(id){const {board}=await getBoard(id);const dir=path.join(dataRoot,'exports',`${id}-${Date.now()}`);const json=path.join(dir,'whiteboard.json'),markdown=path.join(dir,'development-context.md');await atomicWrite(json,board);await atomicWrite(markdown,toMarkdown(board));const plan=board.plan?path.join(dir,'plan.md'):undefined;if(plan)await atomicWrite(plan,board.plan.markdown);return {json,markdown,...(plan?{plan}:{})};}
+
+export async function savePlan(id,input){
+  const plan={...planInputSchema.parse(input),updatedAt:new Date().toISOString()};
+  const planPath=path.join(dataRoot,'plans',safeId(id),'plan.md');
+  const state=await changeBoard(id,async board=>{
+    const next=parseBoard({...board,plan});
+    await atomicWrite(planPath,plan.markdown);
+    return next;
+  });
+  await activateBoard(id);
+  return {boardId:id,revision:state.revision,planPath,updatedAt:plan.updatedAt};
+}
 
 export async function getActiveSession(){return read(path.join(dataRoot,'active.json'),{boardId:null,generation:0});}
 async function activate(boardId){const state=await getBoard(boardId);const previous=await getActiveSession();const next={boardId,revision:state.revision,generation:previous.generation+1,updatedAt:new Date().toISOString()};await atomicWrite(path.join(dataRoot,'active.json'),next);return next;}

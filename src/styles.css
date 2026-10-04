@@ -140,3 +140,46 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .detail-body { padding-inline: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .update-flash [data-slot=card] { animation: none; } }
+
+/* Reading a plan is an independent document view, not another canvas card. */
+.plan-entry { font-size: 13px; white-space: nowrap; }
+.evidence-details.plan-sheet { width: min(780px, 94vw) !important; }
+.plan-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 0 30px; font-size: 12px; color: var(--muted-foreground); }
+.plan-actions span { overflow-wrap: anywhere; }
+.plan-receipt { margin: 0 30px; width: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.plan-document { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 36px 40px; font-size: 15px; line-height: 1.9; overflow-wrap: anywhere; }
+.plan-document h1, .plan-document h2, .plan-document h3, .plan-document h4 { font-family: var(--font-paper); font-weight: 800; line-height: 1.5; margin: 1.2em 0 .6em; }
+.plan-document h1 { font-size: 28px; }
+.plan-document h2 { font-size: 23px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.plan-document h3 { font-size: 19px; }
+.plan-document h4 { font-size: 17px; }
+.plan-document > :first-child { margin-top: 0; }
+.plan-document p { margin: .8em 0; }
+.plan-document ul, .plan-document ol { padding-left: 24px; margin: .7em 0; }
+.plan-document ul { list-style: disc; }
+.plan-document ol { list-style: decimal; }
+.plan-document li { margin: .4em 0; }
+.plan-document ul.contains-task-list { list-style: none; padding-left: 2px; }
+.plan-document .task-list-item { display: list-item; }
+.plan-document input[type=checkbox] { margin-right: 8px; accent-color: var(--primary); }
+.plan-document strong { font-weight: 650; }
+.plan-document a { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
+.plan-document code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .88em; padding: 2px 4px; border-radius: 3px; background: var(--muted); }
+.plan-document pre { padding: 14px; background: var(--muted); border: 1px solid var(--border); border-radius: 4px; overflow-x: auto; }
+.plan-document pre code { padding: 0; background: transparent; white-space: pre; overflow-wrap: normal; }
+.plan-document blockquote { border-left: 3px solid var(--border); padding-left: 16px; color: var(--muted-foreground); }
+.plan-document hr { border-top: 1px solid var(--border); margin: 24px 0; }
+.plan-table-scroll { overflow-x: auto; margin: 18px 0; }
+.plan-document table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.plan-document th, .plan-document td { padding: 9px 12px; border: 1px solid var(--border); min-width: 100px; text-align: left; }
+.plan-document th { background: var(--muted); font-weight: 600; }
+.plan-image-caption { color: var(--muted-foreground); font-size: 13px; }
+.plan-empty { margin: auto 28px; flex: 1; }
+@media (max-width: 520px) {
+  .plan-entry { padding-inline: 8px; }
+  .plan-actions { padding-inline: 22px; }
+  .plan-document { padding: 0 22px 28px; font-size: 14px; }
+  .plan-document h1 { font-size: 24px; }
+  .plan-document h2 { font-size: 20px; }
+  .plan-receipt { margin-inline: 22px; }
+}

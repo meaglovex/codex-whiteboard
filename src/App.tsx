@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlow, useReactFlow } from '@xyflow/react';
-import { ArrowUpRight, CircleCheck, Maximize, MessageCircle, MoreHorizontal, PanelsTopLeft } from 'lucide-react';
+import { ArrowUpRight, CircleCheck, FileText, Maximize, MessageCircle, MoreHorizontal, PanelsTopLeft } from 'lucide-react';
 import { assetImage, type Detail } from './model';
 import { evidenceLayout, type CanvasNode } from './evidenceLayout';
 import BoardHeading from './components/BoardHeading';
 import ThreadEdge from './components/ThreadEdge';
+import PlanSheet from './components/PlanSheet';
 import BoardCard, { CardActions } from './components/BoardCard';
 import { Button } from './components/ui/button';
 import { Badge } from './components/ui/badge';
@@ -28,6 +29,7 @@ export default function App() {
   const { board, boards, ready, error, following, openBoard, follow, exportFiles } = useBoard();
   const flow = useReactFlow<CanvasNode>();
   const [detailId, setDetailId] = useState<string>();
+  const [planOpen, setPlanOpen] = useState(false);
   const [notice, setNotice] = useState<{ title: string; body: string }>();
   const [updatedIds, setUpdatedIds] = useState<string[]>([]);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -43,7 +45,7 @@ export default function App() {
     observer.observe(canvas.current);
     return () => observer.disconnect();
   }, []);
-  useEffect(() => { setDetailId(undefined); fingerprints.current.clear(); setNotice(undefined); }, [board.id]);
+  useEffect(() => { setDetailId(undefined); setPlanOpen(false); fingerprints.current.clear(); setNotice(undefined); }, [board.id]);
   useEffect(() => {
     const changed = board.nodes.filter(n => fingerprints.current.has(n.id) && fingerprints.current.get(n.id) !== JSON.stringify(n.data)).map(n => n.id);
     fingerprints.current = new Map(board.nodes.map(n => [n.id, JSON.stringify(n.data)]));
@@ -71,6 +73,7 @@ export default function App() {
       <span className="board-title">{board.id === 'waiting' ? '从一个想法开始' : board.title}</span>
       <div className="board-topbar-actions">
         <Badge variant="secondary" className="sync-label" data-live={!board.example && following && !error}>{board.example ? '示例白板' : following ? '随对话更新' : '历史白板'}</Badge>
+        <Button variant="ghost" size="sm" className="plan-entry" disabled={!ready} onClick={() => { setDetailId(undefined); setPlanOpen(true); }}><FileText data-icon="inline-start" />查看计划</Button>
         <Button variant="ghost" size="icon" aria-label="查看全部想法" onClick={fit} disabled={!board.nodes.length}><Maximize data-icon="inline-start" /></Button>
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="白板选项" />}><MoreHorizontal data-icon="inline-start" /></DropdownMenuTrigger>
@@ -96,6 +99,7 @@ export default function App() {
       {!board.nodes.length && <div className="board-empty"><Empty><EmptyHeader><EmptyMedia variant="icon"><MessageCircle /></EmptyMedia><EmptyTitle>{ready ? '在 Codex 里，把想法说出来。' : '正在连接白板…'}</EmptyTitle><EmptyDescription>{ready ? '例如：“我想做一个像相册一样能回看的日记产品。”\nCodex 会边讨论边把核心想法放到这里。' : '稍候就能看到当前讨论。'}</EmptyDescription></EmptyHeader></Empty></div>}
     </main>
     <footer className="board-footnote"><span><MessageCircle aria-hidden="true" />{narrow ? '滚动画布查看，在 Codex 里继续讨论。' : '在 Codex 里继续讨论，这页会跟着更新。'}</span>{!!board.nodes.length && <span className="revision-label"><CircleCheck aria-hidden="true" />{board.nodes.filter(n => n.data.pinned).length} 个共识 · {board.nodes.length} 个核心想法</span>}</footer>
+    <PlanSheet key={`${board.id}:${board.plan?.updatedAt || 'empty'}`} plan={board.plan} open={planOpen} onOpenChange={setPlanOpen} onSave={exportFiles} />
     <Sheet open={!!detail} onOpenChange={open => { if (!open) setDetailId(undefined); }}>
       <SheetContent className="evidence-details"><SheetHeader><SheetTitle>{detail?.title}</SheetTitle><SheetDescription>核心结论下面的依据、分支与开发细节。</SheetDescription></SheetHeader>
         {detail && <div className="detail-body">{!!detail.image && <img className="mb-4 w-full rounded-lg" src={assetImage(detail.image)} alt={detail.title} />}<p className="mb-4">{detail.body}</p>{!!detail.steps?.length && <ol className="detail-steps">{detail.steps.map((step, i) => <li key={i}><strong>{step.title}</strong><p>{step.sub}</p></li>)}</ol>}<Branches details={detail.details} />{!detail.details.length && <p className="text-muted-foreground">继续在 Codex 里讨论，依据会留在这里。</p>}<p className="mt-6 flex items-center gap-2 text-muted-foreground"><ArrowUpRight aria-hidden="true" className="size-4" />需要调整时，直接告诉 Codex。</p></div>}

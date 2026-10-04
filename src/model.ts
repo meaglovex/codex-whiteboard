@@ -18,7 +18,8 @@ export type Card = {
 };
 export type BoardNode = Node<Card, 'boardCard'>;
 export type Message = { id: string; role: 'ai' | 'user'; text: string; suggestions?:Card[] };
-export type BoardState = { version: 1; id:string;title:string;goal:string;inspirations:string[];example?:boolean;nodes: BoardNode[]; edges: Edge[]; messages: Message[] };
+export type BoardPlan = { title: string; markdown: string; updatedAt: string; sourcePath?: string };
+export type BoardState = { version: 1; id:string;title:string;goal:string;inspirations:string[];example?:boolean;nodes: BoardNode[]; edges: Edge[]; messages: Message[]; plan?: BoardPlan };
 export type Preferences = {language:string;stack:string;design:string;habits:string;source:string};
 export function assetImage(value?: string): string | undefined {
   return value === 'asset:forest' ? forest : value === 'asset:art' ? art : value === 'asset:journal' ? journal : value;

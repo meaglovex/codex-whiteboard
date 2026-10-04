@@ -97,3 +97,64 @@ test('discussion sync revises the same card, keeps deep arguments and deduplicat
   const files=(await client.callTool({name:'whiteboard_export',arguments:{boardId}})).structuredContent;
   assert.match(await fs.readFile(files.markdown,'utf8'),/再次整理仍可撤销/);
 });
+
+test('plan file attachment persists exact Markdown, updates the board and exports plan.md',async()=>{
+  const created=(await api('/api/boards','POST',{title:'计划独立保存',goal:'验证计划阅读'})).value;
+  const id=created.board.id;
+  const markdown='# 第一版计划\n\n## 实施步骤\n\n- [x] 明确范围\n- [ ] 完成验收\n\n| 阶段 | 输出 |\n| --- | --- |\n| 开发 | 可运行版本 |\n';
+  const filePath=path.join(dir,'source-plan.md');await fs.writeFile(filePath,markdown);
+  const result=await client.callTool({name:'whiteboard_plan',arguments:{boardId:id,filePath}});
+  assert.equal(result.isError,undefined);
+  assert.equal(await fs.readFile(result.structuredContent.planPath,'utf8'),markdown);
+  const saved=(await api(`/api/boards/${id}`)).value;
+  assert.equal(saved.board.plan.markdown,markdown);
+  assert.equal(saved.board.plan.sourcePath,filePath);
+  assert.deepEqual(saved.board.nodes,created.board.nodes);
+  assert.ok(Number.isFinite(Date.parse(saved.board.plan.updatedAt)));
+  assert.equal((await api('/api/session')).value.revision,saved.revision);
+  const exported=(await api(`/api/boards/${id}/export`,'POST',{})).value;
+  assert.equal(path.basename(exported.plan),'plan.md');
+  assert.equal(await fs.readFile(exported.plan,'utf8'),markdown);
+  assert.equal(JSON.parse(await fs.readFile(exported.json,'utf8')).plan.markdown,markdown);
+  assert.match(await fs.readFile(exported.markdown,'utf8'),/\[plan.md\]\(plan.md\)/);
+  // A source file change alone is not misrepresented as a live document update.
+  await fs.writeFile(filePath,'# 修订计划\n');
+  assert.equal((await api(`/api/boards/${id}`)).value.board.plan.markdown,markdown);
+  await client.callTool({name:'whiteboard_plan',arguments:{boardId:id,filePath}});
+  assert.equal((await api(`/api/boards/${id}`)).value.board.plan.markdown,'# 修订计划\n');
+});
+
+test('a later plan survives stale non-plan edits and never appears on another board',async()=>{
+  const first=(await api('/api/boards','POST',{title:'白板一'})).value;
+  const second=(await api('/api/boards','POST',{title:'白板二'})).value;
+  const id=first.board.id;
+  await client.callTool({name:'whiteboard_plan',arguments:{boardId:id,markdown:'# 只属于白板一'}});
+  const local=structuredClone(first.board);local.goal='另一个窗口修改目标';
+  const saved=await api(`/api/boards/${id}`,'PUT',{base:first.board,board:local,revision:first.revision});
+  assert.equal(saved.status,200);assert.equal(saved.value.board.plan.markdown,'# 只属于白板一');
+  assert.equal((await api(`/api/boards/${second.board.id}`)).value.board.plan,undefined);
+  const exported=(await api(`/api/boards/${second.board.id}/export`,'POST',{})).value;
+  assert.equal(exported.plan,undefined);
+});
+
+test('invalid plan sources and empty content leave the previous plan untouched',async()=>{
+  const {board}= (await api('/api/boards','POST',{title:'计划边界'})).value;
+  await client.callTool({name:'whiteboard_plan',arguments:{boardId:board.id,markdown:'# 已保存的计划'}});
+  const before=(await api(`/api/boards/${board.id}`)).value;
+  for(const input of [{markdown:'  '},{markdown:'x'.repeat(200001)},{filePath:'relative.md'},{filePath:path.join(dir,'runtime.json')},{filePath:path.join(dir,'missing.md')},{markdown:'# 重复输入',filePath:path.join(dir,'source-plan.md')}]){
+    assert.equal((await client.callTool({name:'whiteboard_plan',arguments:{boardId:board.id,...input}})).isError,true);
+  }
+  assert.equal((await api(`/api/boards/${board.id}/plan`,'POST',{sourcePath:path.join(dir,'runtime.json')})).status,400);
+  assert.equal((await client.callTool({name:'whiteboard_ui_request',arguments:{route:`/api/boards/${board.id}/plan`,method:'POST',value:{filePath:path.join(dir,'runtime.json')}}})).isError,true);
+  assert.deepEqual((await api(`/api/boards/${board.id}`)).value,before);
+});
+
+test('concurrent plan saves keep the file copy equal to the latest board snapshot',async()=>{
+  const {board}=(await api('/api/boards','POST',{title:'计划并发保存'})).value;
+  const results=await Promise.all(Array.from({length:4},(_,i)=>api(`/api/boards/${board.id}/plan`,'POST',{markdown:`# 计划 ${i}\n`+'内容'.repeat(i%2?2:40000)})));
+  assert.ok(results.every(result=>result.status===200));
+  const saved=(await api(`/api/boards/${board.id}`)).value;
+  const file=path.join(dir,'plans',board.id,'plan.md');
+  assert.equal(await fs.readFile(file,'utf8'),saved.board.plan.markdown);
+  assert.equal(saved.revision,5);
+});

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { atomicWrite, createBoard, listBoards, getBoard, saveBoard, changeBoard, getPreferences, setPreferences, exportBoard, dataRoot, getActiveSession, beginSession, activateBoard } from './store.mjs';
+import { atomicWrite, createBoard, listBoards, getBoard, saveBoard, changeBoard, getPreferences, setPreferences, exportBoard, savePlan, dataRoot, getActiveSession, beginSession, activateBoard } from './store.mjs';
 import { syncConversation } from '../shared/sync.mjs';
 import { brainstorm } from './model.mjs';
 import { parseBoard, cardSchema } from './schema.mjs';
@@ -25,7 +25,7 @@ export async function startHttp(port=5210){
     if(req.headers.origin&&!['http://'+expected,`http://localhost:${port}`,'http://127.0.0.1:5199'].includes(req.headers.origin)){json(res,403,{error:'拒绝跨站访问'});return;}
     if(req.headers['sec-fetch-site']==='cross-site'){json(res,403,{error:'拒绝跨站访问'});return;}
     try{
-      if(url.pathname==='/api/health'){json(res,200,{name:'product-whiteboard',version:'0.1.2',appVersion:'0.2.0',busyBoards:[...busy]});return;}
+      if(url.pathname==='/api/health'){json(res,200,{name:'product-whiteboard',version:'0.1.2',appVersion:'0.2.1',busyBoards:[...busy]});return;}
       if(!url.pathname.startsWith('/api/')){
         if(req.method!=='GET'||url.pathname!=='/'){json(res,404,{error:'页面不存在'});return;}
         res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Set-Cookie':`whiteboard_session=${token}; HttpOnly; SameSite=Strict; Path=/`,'Content-Security-Policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'"});res.end(await fs.readFile(path.join(packageRoot,'ui/index.html')));return;
@@ -40,12 +40,13 @@ export async function startHttp(port=5210){
       if(url.pathname==='/api/preferences'){
         if(req.method==='GET')json(res,200,await getPreferences());else if(req.method==='PUT')json(res,200,await setPreferences(await body(req)));else json(res,405,{error:'不支持的操作'});return;
       }
-      const match=/^\/api\/boards\/([a-zA-Z0-9-]+)(?:\/(chat|apply|export|sync))?$/.exec(url.pathname);
+      const match=/^\/api\/boards\/([a-zA-Z0-9-]+)(?:\/(chat|apply|export|sync|plan))?$/.exec(url.pathname);
       if(!match){json(res,404,{error:'接口不存在'});return;}
       const [,id,action]=match;
       if(!action&&req.method==='GET'){json(res,200,{...await getBoard(id),busy:busy.has(id)});return;}
       if(!action&&req.method==='PUT'){const input=await body(req);json(res,200,await saveBoard(id,input.base,input.board,input.revision));return;}
       if(action==='export'&&req.method==='POST'){json(res,200,await exportBoard(id));return;}
+      if(action==='plan'&&req.method==='POST'){json(res,200,await savePlan(id,await body(req)));return;}
       if(action==='sync'&&req.method==='POST'){const input=await body(req);const state=await changeBoard(id,b=>syncConversation(b,input));await activateBoard(id);json(res,200,state);return;}
       if(action==='apply'&&req.method==='POST'){
         const {operations}=await body(req);if(!Array.isArray(operations)||operations.length>100)throw new Error('无效的变更操作');
